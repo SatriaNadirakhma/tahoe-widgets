@@ -1,9 +1,9 @@
 {
   "name": "Tahoe Widgets",
-  "description": "macOS Tahoe-inspired desktop widgets — glassmorphism clock, weather, calendar, world clock, battery, and quick status cards for GNOME Shell.",
+  "description": "macOS Tahoe-inspired glassmorphism desktop widgets for GNOME Shell.",
   "uuid": "tahoe-widgets@gnome",
-  "version": 1,
-  "shell-version": ["45", "46", "47", "48"],
+  "version": 2,
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
   "url": "https://github.com/yourname/tahoe-widgets",
   "settings-schema": "org.gnome.shell.extensions.tahoe-widgets",
   "gettext-domain": "tahoe-widgets"
