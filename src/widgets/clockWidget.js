@@ -23,19 +23,19 @@ export class ClockWidget extends BaseWidget {
         this._timeBox = new St.BoxLayout({
             style_class: 'tahoe-clock-time-row',
             vertical:    false,
-            y_align:     Clutter.ActorAlign.BASELINE,
+            y_align:     Clutter.ActorAlign.CENTER,
         });
 
         this._timeLabel = new St.Label({
             text:        '00:00',
             style_class: 'tahoe-clock-time',
-            y_align:     Clutter.ActorAlign.FILL,
+            y_align:     Clutter.ActorAlign.CENTER,
         });
 
         this._ampmLabel = new St.Label({
             text:        '',
             style_class: 'tahoe-clock-ampm',
-            y_align:     Clutter.ActorAlign.END,
+            y_align:     Clutter.ActorAlign.CENTER,
         });
 
         this._timeBox.add_child(this._timeLabel);

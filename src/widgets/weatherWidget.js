@@ -44,16 +44,16 @@ export class WeatherWidget extends BaseWidget {
         this._tempLabel = new St.Label({
             text:        '--',
             style_class: 'tahoe-weather-temp',
-            y_align:     Clutter.ActorAlign.END,
+            y_align:     Clutter.ActorAlign.CENTER,
         });
         this._unitLabel = new St.Label({
             text:        '°',
             style_class: 'tahoe-clock-ampm',
-            y_align:     Clutter.ActorAlign.END,
+            y_align:     Clutter.ActorAlign.CENTER,
         });
 
         const descCol = new St.BoxLayout({ vertical: true, x_expand: true,
-            y_align: Clutter.ActorAlign.END, style: 'padding-bottom:6px;' });
+            y_align: Clutter.ActorAlign.CENTER, style: 'padding-bottom:6px;' });
         this._descLabel  = new St.Label({ text: '', style_class: 'tahoe-weather-desc' });
         this._hiloLabel  = new St.Label({ text: '', style_class: 'tahoe-weather-hi-lo' });
         descCol.add_child(this._descLabel);
