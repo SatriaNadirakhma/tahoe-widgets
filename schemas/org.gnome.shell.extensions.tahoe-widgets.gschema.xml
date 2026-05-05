@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.tahoe-widgets"
+          path="/org/gnome/shell/extensions/tahoe-widgets/">
+
+    <!-- ── Widget visibility ─────────────────────────────── -->
+    <key name="enabled-widgets" type="as">
+      <default>["clock","weather","calendar","worldClock","battery","quickStatus"]</default>
+      <summary>List of enabled widget IDs</summary>
+    </key>
+
+    <!-- ── Widget positions (JSON: {id: {x, y}}) ─────────── -->
+    <key name="widget-positions" type="s">
+      <default>"{}"</default>
+      <summary>Saved widget positions as JSON</summary>
+    </key>
+
+    <!-- ── Visual settings ───────────────────────────────── -->
+    <key name="blur-radius" type="i">
+      <range min="0" max="60"/>
+      <default>24</default>
+      <summary>Background blur radius in pixels</summary>
+    </key>
+
+    <key name="opacity" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>0.72</default>
+      <summary>Widget background opacity (0.0–1.0)</summary>
+    </key>
+
+    <key name="corner-radius" type="i">
+      <range min="0" max="32"/>
+      <default>20</default>
+      <summary>Widget corner radius in pixels</summary>
+    </key>
+
+    <key name="widget-spacing" type="i">
+      <range min="4" max="48"/>
+      <default>16</default>
+      <summary>Gap between widgets in pixels</summary>
+    </key>
+
+    <!-- ── Weather settings ──────────────────────────────── -->
+    <key name="weather-location" type="s">
+      <default>""</default>
+      <summary>City/location override (blank = auto)</summary>
+    </key>
+
+    <key name="weather-unit" type="s">
+      <choices>
+        <choice value="celsius"/>
+        <choice value="fahrenheit"/>
+      </choices>
+      <default>"celsius"</default>
+      <summary>Temperature unit</summary>
+    </key>
+
+    <key name="weather-provider" type="s">
+      <choices>
+        <choice value="openmeteo"/>
+        <choice value="openweathermap"/>
+      </choices>
+      <default>"openmeteo"</default>
+      <summary>Weather data provider</summary>
+    </key>
+
+    <key name="openweathermap-api-key" type="s">
+      <default>""</default>
+      <summary>OpenWeatherMap API key (optional)</summary>
+    </key>
+
+    <!-- ── World clock ───────────────────────────────────── -->
+    <key name="world-clock-cities" type="as">
+      <default>["America/New_York","Europe/London","Asia/Tokyo","Australia/Sydney"]</default>
+      <summary>Timezones shown in world clock widget</summary>
+    </key>
+
+    <!-- ── Clock format ──────────────────────────────────── -->
+    <key name="clock-format" type="s">
+      <choices>
+        <choice value="12h"/>
+        <choice value="24h"/>
+      </choices>
+      <default>"12h"</default>
+      <summary>Clock display format</summary>
+    </key>
+
+    <!-- ── Snapping ──────────────────────────────────────── -->
+    <key name="snap-to-grid" type="b">
+      <default>true</default>
+      <summary>Snap widgets to 8 px grid when dragging</summary>
+    </key>
+
+    <key name="snap-grid-size" type="i">
+      <range min="4" max="64"/>
+      <default>8</default>
+      <summary>Grid size for snapping</summary>
+    </key>
+
+  </schema>
+</schemalist>
