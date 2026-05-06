@@ -258,16 +258,19 @@ export default class TahoePreferences extends ExtensionPreferences {
     }
 
     _group(title, description) {
-        return new Adw.PreferencesGroup({ title, description });
+        const group = new Adw.PreferencesGroup({ title });
+        if (description) group.set_description(description);
+        return group;
     }
 
     _spinRow(s, key, title, subtitle, min, max, step) {
         const row = new Adw.SpinRow({
-            title, subtitle,
+            title,
             adjustment: new Gtk.Adjustment({
                 lower: min, upper: max, step_increment: step, page_increment: step * 5,
             }),
         });
+        if (subtitle) row.set_subtitle(subtitle);
         row.set_value(
             key.includes('opacity') || key.includes('double')
                 ? s.get_double(key)
@@ -291,13 +294,15 @@ export default class TahoePreferences extends ExtensionPreferences {
         });
         scale.set_value(s.get_double(key));
         scale.connect('value-changed', () => s.set_double(key, scale.get_value()));
-        const row = new Adw.ActionRow({ title, subtitle });
+        const row = new Adw.ActionRow({ title });
+        if (subtitle) row.set_subtitle(subtitle);
         row.add_suffix(scale);
         return row;
     }
 
     _switchRow(s, key, title, subtitle) {
-        const row = new Adw.SwitchRow({ title, subtitle });
+        const row = new Adw.SwitchRow({ title });
+        if (subtitle) row.set_subtitle(subtitle);
         row.set_active(s.get_boolean(key));
         row.connect('notify::active', () => s.set_boolean(key, row.get_active()));
         return row;
@@ -313,7 +318,8 @@ export default class TahoePreferences extends ExtensionPreferences {
     _comboRow(s, key, title, subtitle, items) {
         const model = new Gtk.StringList();
         items.forEach(i => model.append(i.label));
-        const row   = new Adw.ComboRow({ title, subtitle, model });
+        const row   = new Adw.ComboRow({ title, model });
+        if (subtitle) row.set_subtitle(subtitle);
         const cur   = s.get_string(key);
         const idx   = items.findIndex(i => i.value === cur);
         row.set_selected(idx >= 0 ? idx : 0);
