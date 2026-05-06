@@ -1,226 +1,324 @@
 /**
- * prefs.js — GNOME Extensions Preferences panel.
- * Opens via gnome-extensions-app or `gnome-extensions prefs tahoe-widgets@gnome`.
- * Uses Adw (libadwaita) widgets available since GNOME 42.
+ * prefs.js v2 — Production settings panel using Adw + Gtk4.
+ * Sections: Appearance · Layout · Clock · Weather · World Clock · Widgets · About
+ * All changes apply live (GSettings bindings).
  */
 
 import Adw  from 'gi://Adw';
 import Gtk  from 'gi://Gtk';
-import Gdk  from 'gi://Gdk';
-import GLib from 'gi://GLib';
 import Gio  from 'gi://Gio';
-
-import { ExtensionPreferences, gettext as _ }
-    from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import GLib from 'gi://GLib';
+import { ExtensionPreferences } from
+    'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 export default class TahoePreferences extends ExtensionPreferences {
-    fillPreferencesWindow(window) {
-        const settings = this.getSettings();
-        window.set_default_size(640, 720);
-        window.set_title('Tahoe Widgets');
+    fillPreferencesWindow(win) {
+        const s = this.getSettings();
+        win.set_default_size(680, 760);
+        win.set_title('Tahoe Widgets');
 
-        /* ── Appearance page ───────────────────────────────────── */
-        const appearancePage = new Adw.PreferencesPage({
-            title: 'Appearance',
-            icon_name: 'preferences-desktop-appearance-symbolic',
-        });
-        window.add(appearancePage);
-
-        const visualGroup = new Adw.PreferencesGroup({ title: 'Visual' });
-        appearancePage.add(visualGroup);
-
-        // Blur radius
-        visualGroup.add(this._makeSpinRow(settings, 'blur-radius',
-            'Blur Radius', 'Background blur strength (px)', 0, 60, 1));
-
-        // Opacity
-        visualGroup.add(this._makeScaleRow(settings, 'opacity',
-            'Opacity', 'Widget background opacity', 0.0, 1.0, 0.05));
-
-        // Corner radius
-        visualGroup.add(this._makeSpinRow(settings, 'corner-radius',
-            'Corner Radius', 'Rounded corner size (px)', 0, 32, 1));
-
-        // Widget spacing
-        visualGroup.add(this._makeSpinRow(settings, 'widget-spacing',
-            'Widget Spacing', 'Gap between widgets (px)', 4, 48, 2));
-
-        // Clock format
-        const clockGroup = new Adw.PreferencesGroup({ title: 'Clock' });
-        appearancePage.add(clockGroup);
-
-        clockGroup.add(this._makeComboRow(settings, 'clock-format',
-            'Format', 'Time display format',
-            [{ value: '12h', label: '12-hour (AM/PM)' },
-             { value: '24h', label: '24-hour'         }]));
-
-        /* ── Weather page ──────────────────────────────────────── */
-        const weatherPage = new Adw.PreferencesPage({
-            title: 'Weather',
-            icon_name: 'weather-clear-symbolic',
-        });
-        window.add(weatherPage);
-
-        const weatherGroup = new Adw.PreferencesGroup({ title: 'Location & Units' });
-        weatherPage.add(weatherGroup);
-
-        weatherGroup.add(this._makeEntryRow(settings, 'weather-location',
-            'Location', 'City name or leave blank for auto-detect'));
-
-        weatherGroup.add(this._makeComboRow(settings, 'weather-unit',
-            'Unit', 'Temperature unit',
-            [{ value: 'celsius',    label: 'Celsius (°C)'    },
-             { value: 'fahrenheit', label: 'Fahrenheit (°F)' }]));
-
-        weatherGroup.add(this._makeComboRow(settings, 'weather-provider',
-            'Provider', 'Data source (Open-Meteo needs no key)',
-            [{ value: 'openmeteo',      label: 'Open-Meteo (free)'     },
-             { value: 'openweathermap', label: 'OpenWeatherMap (key required)' }]));
-
-        weatherGroup.add(this._makeEntryRow(settings, 'openweathermap-api-key',
-            'OWM API Key', 'Required only for OpenWeatherMap'));
-
-        /* ── World Clock page ──────────────────────────────────── */
-        const worldPage = new Adw.PreferencesPage({
-            title: 'World Clock',
-            icon_name: 'globe-symbolic',
-        });
-        window.add(worldPage);
-
-        const worldGroup = new Adw.PreferencesGroup({
-            title:       'Timezones',
-            description: 'One IANA timezone per line, e.g. America/New_York',
-        });
-        worldPage.add(worldGroup);
-
-        const tzBuffer = new Gtk.TextBuffer();
-        tzBuffer.set_text(settings.get_strv('world-clock-cities').join('\n'), -1);
-        const tzView = new Gtk.TextView({
-            buffer:       tzBuffer,
-            monospace:    true,
-            margin_top:   8,
-            margin_bottom: 8,
-            margin_start: 8,
-            margin_end:   8,
-        });
-        const tzFrame = new Gtk.Frame();
-        tzFrame.set_child(tzView);
-
-        tzBuffer.connect('changed', () => {
-            const lines = tzBuffer.get_text(
-                tzBuffer.get_start_iter(), tzBuffer.get_end_iter(), false
-            ).split('\n').map(l => l.trim()).filter(Boolean);
-            settings.set_strv('world-clock-cities', lines);
-        });
-
-        const tzRow = new Adw.ActionRow({ title: 'Timezones' });
-        tzRow.set_child(tzFrame);
-        worldGroup.add(tzRow);
-
-        /* ── Layout page ───────────────────────────────────────── */
-        const layoutPage = new Adw.PreferencesPage({
-            title: 'Layout',
-            icon_name: 'view-grid-symbolic',
-        });
-        window.add(layoutPage);
-
-        const snapGroup = new Adw.PreferencesGroup({ title: 'Snapping' });
-        layoutPage.add(snapGroup);
-
-        snapGroup.add(this._makeSwitchRow(settings, 'snap-to-grid',
-            'Snap to Grid', 'Align widgets to a pixel grid when dragging'));
-
-        snapGroup.add(this._makeSpinRow(settings, 'snap-grid-size',
-            'Grid Size', 'Snapping grid size (px)', 4, 64, 4));
-
-        /* ── Widgets page ──────────────────────────────────────── */
-        const widgetsPage = new Adw.PreferencesPage({
-            title: 'Widgets',
-            icon_name: 'view-app-grid-symbolic',
-        });
-        window.add(widgetsPage);
-
-        const enabledGroup = new Adw.PreferencesGroup({
-            title:       'Enable / Disable',
-            description: 'Changes take effect after restarting the extension',
-        });
-        widgetsPage.add(enabledGroup);
-
-        const allWidgets = [
-            { id: 'clock',       label: 'Clock'        },
-            { id: 'weather',     label: 'Weather'       },
-            { id: 'calendar',    label: 'Calendar'      },
-            { id: 'worldClock',  label: 'World Clock'   },
-            { id: 'battery',     label: 'Battery'       },
-            { id: 'quickStatus', label: 'Quick Status'  },
-        ];
-
-        allWidgets.forEach(({ id, label }) => {
-            const enabled = settings.get_strv('enabled-widgets').includes(id);
-            const row     = new Adw.SwitchRow({ title: label });
-            row.set_active(enabled);
-            row.connect('notify::active', () => {
-                const cur = settings.get_strv('enabled-widgets');
-                const next = row.get_active()
-                    ? [...new Set([...cur, id])]
-                    : cur.filter(x => x !== id);
-                settings.set_strv('enabled-widgets', next);
-            });
-            enabledGroup.add(row);
-        });
+        win.add(this._appearancePage(s));
+        win.add(this._layoutPage(s));
+        win.add(this._clockPage(s));
+        win.add(this._weatherPage(s));
+        win.add(this._worldClockPage(s));
+        win.add(this._widgetsPage(s));
+        win.add(this._aboutPage());
     }
 
-    /* ── Row factory helpers ─────────────────────────────────────── */
+    /* ══ Pages ════════════════════════════════════════════════════════ */
 
-    _makeSpinRow(settings, key, title, subtitle, min, max, step) {
+    _appearancePage(s) {
+        const page = this._page('Appearance', 'preferences-desktop-appearance-symbolic');
+
+        // Visual group
+        const vg = this._group('Visual Style');
+        vg.add(this._spinRow(s, 'blur-radius',    'Blur Radius',    'Glassmorphism blur strength (px)', 0, 60, 2));
+        vg.add(this._scaleRow(s, 'panel-opacity',  'Panel Opacity',  'Background fill opacity',          0.05, 0.95, 0.05));
+        vg.add(this._spinRow(s, 'corner-radius',  'Corner Radius',  'Widget rounded corners (px)',       4, 36, 2));
+        vg.add(this._spinRow(s, 'widget-spacing', 'Widget Spacing', 'Default gap when auto-placed (px)', 4, 64, 4));
+        page.add(vg);
+
+        // Color scheme
+        const cg = this._group('Color Scheme');
+        cg.add(this._comboRow(s, 'color-scheme', 'Theme', 'Adapt widget tint to shell theme',
+            [{ value: 'auto',  label: 'Automatic (follow shell)' },
+             { value: 'light', label: 'Light'  },
+             { value: 'dark',  label: 'Dark'   }]));
+        page.add(cg);
+
+        return page;
+    }
+
+    _layoutPage(s) {
+        const page = this._page('Layout', 'view-grid-symbolic');
+
+        const sg = this._group('Snapping');
+        sg.add(this._switchRow(s, 'snap-to-grid', 'Snap to Grid',
+            'Align widgets to a pixel grid while dragging'));
+        sg.add(this._spinRow(s, 'grid-size', 'Grid Size',
+            'Snap grid resolution (px)', 4, 64, 4));
+        page.add(sg);
+
+        const mg = this._group('Safe Area');
+        mg.add(this._spinRow(s, 'top-bar-margin', 'Top Bar Margin',
+            'Pixels reserved below the top bar', 0, 120, 4));
+        mg.add(this._spinRow(s, 'dock-margin', 'Dock Margin',
+            'Pixels reserved above the dock/bottom panel', 0, 200, 8));
+        page.add(mg);
+
+        return page;
+    }
+
+    _clockPage(s) {
+        const page = this._page('Clock', 'clock-symbolic');
+
+        const cg = this._group('Display');
+        cg.add(this._comboRow(s, 'clock-format', 'Format', 'Time display style',
+            [{ value: '12h', label: '12-hour (AM/PM)' },
+             { value: '24h', label: '24-hour'          }]));
+        cg.add(this._switchRow(s, 'clock-show-seconds', 'Show Seconds',
+            'Display seconds in the clock'));
+        page.add(cg);
+
+        return page;
+    }
+
+    _weatherPage(s) {
+        const page = this._page('Weather', 'weather-clear-symbolic');
+
+        const lg = this._group('Location');
+        lg.add(this._entryRow(s, 'weather-location', 'City',
+            'City name — leave blank for automatic detection'));
+        lg.add(this._comboRow(s, 'weather-unit', 'Unit', 'Temperature unit',
+            [{ value: 'celsius',    label: 'Celsius (°C)'     },
+             { value: 'fahrenheit', label: 'Fahrenheit (°F)'  }]));
+        page.add(lg);
+
+        const rg = this._group('Refresh');
+        rg.add(this._spinRow(s, 'weather-refresh-minutes', 'Interval',
+            'How often to fetch new weather data (minutes)', 5, 120, 5));
+        page.add(rg);
+
+        return page;
+    }
+
+    _worldClockPage(s) {
+        const page = this._page('World Clock', 'globe-symbolic');
+
+        const wg = this._group('Timezones',
+            'One IANA timezone per line — e.g. America/New_York');
+
+        // Text editor for timezone list
+        const buf = new Gtk.TextBuffer();
+        buf.set_text(s.get_strv('world-clock-zones').join('\n'), -1);
+
+        let saveTimer = null;
+        buf.connect('changed', () => {
+            if (saveTimer) GLib.source_remove(saveTimer);
+            saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 500, () => {
+                const text  = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), false);
+                const zones = text.split('\n').map(l => l.trim()).filter(Boolean);
+                s.set_strv('world-clock-zones', zones);
+                saveTimer = null;
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+
+        const tv = new Gtk.TextView({
+            buffer:       buf,
+            monospace:    true,
+            margin_top:   8, margin_bottom: 8,
+            margin_start: 8, margin_end:   8,
+            wrap_mode:    Gtk.WrapMode.NONE,
+        });
+        const frame = new Gtk.Frame({ child: tv });
+        const row   = new Adw.ActionRow({ title: 'Timezone List' });
+        row.set_child(frame);
+        wg.add(row);
+        page.add(wg);
+
+        return page;
+    }
+
+    _widgetsPage(s) {
+        const page = this._page('Widgets', 'view-app-grid-symbolic');
+
+        const all = [
+            { id: 'clock',       icon: '🕐', label: 'Clock',        desc: 'Live digital clock' },
+            { id: 'weather',     icon: '🌤️', label: 'Weather',       desc: 'Conditions + forecast' },
+            { id: 'calendar',    icon: '📅', label: 'Calendar',      desc: 'Monthly mini-calendar' },
+            { id: 'worldClock',  icon: '🌍', label: 'World Clock',   desc: 'Multi-timezone display' },
+            { id: 'battery',     icon: '🔋', label: 'Battery',       desc: 'Battery + devices' },
+            { id: 'quickStatus', icon: '📊', label: 'Quick Status',  desc: 'Wi-Fi, CPU, RAM' },
+        ];
+
+        const wg = this._group('Enable / Disable',
+            'Changes apply after toggling the extension or restarting GNOME Shell');
+
+        all.forEach(({ id, icon, label, desc }) => {
+            const active = s.get_strv('active-widgets').includes(id);
+            const row    = new Adw.ActionRow({
+                title:    `${icon}  ${label}`,
+                subtitle: desc,
+            });
+            const sw = new Gtk.Switch({ active, valign: Gtk.Align.CENTER });
+            sw.connect('state-set', (_w, state) => {
+                const cur  = s.get_strv('active-widgets');
+                const next = state
+                    ? [...new Set([...cur, id])]
+                    : cur.filter(x => x !== id);
+                s.set_strv('active-widgets', next);
+                return false;
+            });
+            row.add_suffix(sw);
+            row.set_activatable_widget(sw);
+            wg.add(row);
+        });
+        page.add(wg);
+
+        // Danger zone
+        const dg = this._group('Danger Zone');
+        const resetRow = new Adw.ActionRow({
+            title:    'Reset All Settings',
+            subtitle: 'Remove all widgets and restore defaults',
+        });
+        const resetBtn = new Gtk.Button({
+            label:   'Reset',
+            css_classes: ['destructive-action'],
+            valign:  Gtk.Align.CENTER,
+        });
+        resetBtn.connect('clicked', () => {
+            const dialog = new Adw.MessageDialog({
+                heading:        'Reset All Settings?',
+                body:           'All widgets will be removed and settings restored to defaults.',
+                default_response: 'cancel',
+            });
+            dialog.add_response('cancel', 'Cancel');
+            dialog.add_response('reset', 'Reset');
+            dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.connect('response', (_d, res) => {
+                if (res === 'reset') {
+                    // Reset each key individually
+                    [
+                        'blur-radius','panel-opacity','corner-radius','widget-spacing',
+                        'color-scheme','snap-to-grid','grid-size','top-bar-margin','dock-margin',
+                        'clock-format','clock-show-seconds','weather-location','weather-unit',
+                        'weather-refresh-minutes','world-clock-zones','active-widgets','widget-states',
+                        'first-run',
+                    ].forEach(k => s.reset(k));
+                }
+            });
+            dialog.present();
+        });
+        resetRow.add_suffix(resetBtn);
+        dg.add(resetRow);
+        page.add(dg);
+
+        return page;
+    }
+
+    _aboutPage() {
+        const page = this._page('About', 'help-about-symbolic');
+
+        const ag = this._group('Tahoe Widgets');
+        const infoRow = new Adw.ActionRow({
+            title:    'Version',
+            subtitle: '2.0.0 — GNOME 45–50',
+        });
+        ag.add(infoRow);
+
+        const srcRow = new Adw.ActionRow({
+            title:    'Source Code',
+            subtitle: 'github.com/yourname/tahoe-widgets',
+            activatable: true,
+        });
+        srcRow.add_suffix(new Gtk.Image({ icon_name: 'external-link-symbolic' }));
+        srcRow.connect('activated', () => {
+            Gio.AppInfo.launch_default_for_uri(
+                'https://github.com/yourname/tahoe-widgets', null
+            );
+        });
+        ag.add(srcRow);
+
+        const licRow = new Adw.ActionRow({
+            title:    'License',
+            subtitle: 'GNU General Public License v2.0 or later',
+        });
+        ag.add(licRow);
+
+        page.add(ag);
+        return page;
+    }
+
+    /* ══ Row factories ════════════════════════════════════════════════ */
+
+    _page(title, icon) {
+        return new Adw.PreferencesPage({ title, icon_name: icon });
+    }
+
+    _group(title, description) {
+        return new Adw.PreferencesGroup({ title, description });
+    }
+
+    _spinRow(s, key, title, subtitle, min, max, step) {
         const row = new Adw.SpinRow({
             title, subtitle,
-            adjustment: new Gtk.Adjustment({ lower: min, upper: max, step_increment: step }),
+            adjustment: new Gtk.Adjustment({
+                lower: min, upper: max, step_increment: step, page_increment: step * 5,
+            }),
         });
-        row.set_value(settings.get_int(key));
-        row.connect('notify::value', () => settings.set_int(key, row.get_value()));
+        row.set_value(
+            key.includes('opacity') || key.includes('double')
+                ? s.get_double(key)
+                : s.get_int(key)
+        );
+        row.connect('notify::value', () => {
+            key.includes('opacity')
+                ? s.set_double(key, row.get_value())
+                : s.set_int(key, row.get_value());
+        });
         return row;
     }
 
-    _makeScaleRow(settings, key, title, subtitle, min, max, step) {
+    _scaleRow(s, key, title, subtitle, min, max, step) {
         const scale = new Gtk.Scale({
-            orientation:    Gtk.Orientation.HORIZONTAL,
-            adjustment:     new Gtk.Adjustment({ lower: min, upper: max, step_increment: step }),
-            value_pos:      Gtk.PositionType.RIGHT,
-            digits:         2,
-            hexpand:        true,
-            valign:         Gtk.Align.CENTER,
+            orientation: Gtk.Orientation.HORIZONTAL,
+            adjustment:  new Gtk.Adjustment({ lower: min, upper: max, step_increment: step }),
+            value_pos:   Gtk.PositionType.RIGHT,
+            digits:      2, hexpand: true,
+            valign:      Gtk.Align.CENTER,
         });
-        scale.set_value(settings.get_double(key));
-        scale.connect('value-changed', () => settings.set_double(key, scale.get_value()));
+        scale.set_value(s.get_double(key));
+        scale.connect('value-changed', () => s.set_double(key, scale.get_value()));
         const row = new Adw.ActionRow({ title, subtitle });
         row.add_suffix(scale);
         return row;
     }
 
-    _makeEntryRow(settings, key, title, subtitle) {
-        const row = new Adw.EntryRow({ title, show_apply_button: true });
-        row.set_text(settings.get_string(key));
-        row.connect('apply', () => settings.set_string(key, row.get_text()));
-        return row;
-    }
-
-    _makeSwitchRow(settings, key, title, subtitle) {
+    _switchRow(s, key, title, subtitle) {
         const row = new Adw.SwitchRow({ title, subtitle });
-        row.set_active(settings.get_boolean(key));
-        row.connect('notify::active', () => settings.set_boolean(key, row.get_active()));
+        row.set_active(s.get_boolean(key));
+        row.connect('notify::active', () => s.set_boolean(key, row.get_active()));
         return row;
     }
 
-    _makeComboRow(settings, key, title, subtitle, items) {
-        const model  = new Gtk.StringList();
+    _entryRow(s, key, title, subtitle) {
+        const row = new Adw.EntryRow({ title, show_apply_button: true });
+        row.set_text(s.get_string(key) ?? '');
+        row.connect('apply', () => s.set_string(key, row.get_text()));
+        return row;
+    }
+
+    _comboRow(s, key, title, subtitle, items) {
+        const model = new Gtk.StringList();
         items.forEach(i => model.append(i.label));
-        const row    = new Adw.ComboRow({ title, subtitle, model });
-        const curVal = settings.get_string(key);
-        const idx    = items.findIndex(i => i.value === curVal);
+        const row   = new Adw.ComboRow({ title, subtitle, model });
+        const cur   = s.get_string(key);
+        const idx   = items.findIndex(i => i.value === cur);
         row.set_selected(idx >= 0 ? idx : 0);
         row.connect('notify::selected', () => {
-            settings.set_string(key, items[row.get_selected()]?.value ?? items[0].value);
+            s.set_string(key, items[row.get_selected()]?.value ?? items[0].value);
         });
         return row;
     }

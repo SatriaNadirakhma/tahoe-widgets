@@ -1,62 +1,162 @@
 /**
- * Tahoe Widgets - GNOME Shell Extension
- * macOS Tahoe-inspired desktop widgets
+ * Tahoe Widgets v2 — Production-Ready GNOME Shell Extension
  *
- * @author  Your Name
- * @license GPL-2.0-or-later
- * @version 1.0.0
+ * Architecture overview
+ * ─────────────────────
+ * extension.js (this file)
+ *   └─ orchestrates four core singletons:
+ *
+ *  StateManager    — single source of truth (GSettings + widget positions)
+ *  WidgetRegistry  — catalog of available widget types + active instances
+ *  LayoutManager   — full-screen canvas, drag/drop, snapping, z-order
+ *  DataManager     — external data fetching (weather, geolocation)
+ *
+ *  Two UI helpers:
+ *  WidgetPicker    — slide-in "Add Widget" panel
+ *  TahoePanelButton— top-bar indicator with menu
+ *
+ * Startup sequence
+ * ─────────────────
+ *  1. Build core singletons
+ *  2. Register all widget descriptors into WidgetRegistry
+ *  3. Load active widget list from StateManager
+ *  4. Instantiate each saved widget + add to LayoutManager canvas
+ *  5. If first run → show onboarding notification
+ *
+ * No widget is shown automatically on fresh install.
+ * User adds them via the WidgetPicker (🌊 panel button → Add Widget).
  */
-
-import GLib from 'gi://GLib';
-import St from 'gi://St';
-import Clutter from 'gi://Clutter';
-import Meta from 'gi://Meta';
-import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { WidgetContainer } from './src/widgetContainer.js';
+import { Logger }          from './src/utils/logger.js';
+import { StateManager }    from './src/core/stateManager.js';
+import { WidgetRegistry }  from './src/core/widgetRegistry.js';
+import { LayoutManager }   from './src/core/layoutManager.js';
+import { DataManager }     from './src/core/dataManager.js';
+import { WidgetPicker }    from './src/ui/widgetPicker.js';
+import { TahoePanelButton } from './src/ui/panelButton.js';
+
+// Widget classes
 import { ClockWidget }     from './src/widgets/clockWidget.js';
 import { WeatherWidget }   from './src/widgets/weatherWidget.js';
 import { CalendarWidget }  from './src/widgets/calendarWidget.js';
-import { WorldClockWidget } from './src/widgets/worldClockWidget.js';
-import { BatteryWidget }   from './src/widgets/batteryWidget.js';
-import { QuickStatusWidget } from './src/widgets/quickStatusWidget.js';
-import { StateManager }    from './src/utils/stateManager.js';
-import { Logger }          from './src/utils/logger.js';
+import {
+    WorldClockWidget,
+    BatteryWidget,
+    QuickStatusWidget,
+} from './src/widgets/otherWidgets.js';
+
+/** All available widget descriptors — edit here to add new widgets. */
+const WIDGET_CATALOG = [
+    {
+        id:          'clock',
+        label:       'Clock',
+        description: 'Live digital clock with date',
+        icon:        '🕐',
+        Cls:         ClockWidget,
+    },
+    {
+        id:          'weather',
+        label:       'Weather',
+        description: 'Current conditions + 6-hour forecast',
+        icon:        '🌤️',
+        Cls:         WeatherWidget,
+    },
+    {
+        id:          'calendar',
+        label:       'Calendar',
+        description: 'Monthly mini-calendar with today highlight',
+        icon:        '📅',
+        Cls:         CalendarWidget,
+    },
+    {
+        id:          'worldClock',
+        label:       'World Clock',
+        description: 'Time in multiple timezones',
+        icon:        '🌍',
+        Cls:         WorldClockWidget,
+    },
+    {
+        id:          'battery',
+        label:       'Battery',
+        description: 'System battery + connected devices',
+        icon:        '🔋',
+        Cls:         BatteryWidget,
+    },
+    {
+        id:          'quickStatus',
+        label:       'Quick Status',
+        description: 'Wi-Fi, Bluetooth, CPU & RAM',
+        icon:        '📊',
+        Cls:         QuickStatusWidget,
+    },
+];
 
 export default class TahoeWidgetsExtension extends Extension {
-    constructor(metadata) {
-        super(metadata);
-        this._container   = null;
-        this._state       = null;
-        this._widgets     = [];
-        this._logger      = null;
-    }
+    /* ══ enable ════════════════════════════════════════════════════════ */
 
     enable() {
-        this._logger = new Logger('TahoeWidgets');
-        this._logger.info('Extension enabling...');
+        this._log = new Logger('Extension');
+        this._log.info('Enabling Tahoe Widgets v2');
 
-        // Initialize state manager (loads saved positions & settings)
-        this._state = new StateManager(this.getSettings());
+        try {
+            // 1. Core singletons
+            this._state    = new StateManager(this.getSettings());
+            this._registry = new WidgetRegistry(this._state);
+            this._layout   = new LayoutManager(this._state);
+            this._data     = new DataManager(this._state);
 
-        // Build the desktop layer
-        this._buildDesktopLayer();
+            // 2. Register widget catalog
+            WIDGET_CATALOG.forEach(desc => this._registry.register(desc));
 
-        // Connect to overview hide/show so widgets vanish in Activities
-        this._overviewShowId = Main.overview.connect('showing', () => {
-            this._container?.hide();
-        });
-        this._overviewHideId = Main.overview.connect('hidden', () => {
-            this._container?.show();
-        });
+            // 3. Restore previously active widgets
+            this._restoreWidgets();
 
-        this._logger.info('Extension enabled');
+            // 4. UI chrome
+            this._picker = new WidgetPicker(this._registry, this._state);
+            this._panelBtn = new TahoePanelButton(
+                this._picker, this._layout, this._state
+            );
+
+            // 5. Wire registry → layout (add/remove from canvas automatically)
+            this._wireRegistryToLayout();
+
+            // 6. Hide widgets in Activities overview
+            this._overviewShowId = Main.overview.connect('showing',
+                () => this._layout.hide());
+            this._overviewHideId = Main.overview.connect('hidden',
+                () => this._layout.show());
+
+            // 7. First-run onboarding
+            if (this._state.isFirstRun) {
+                this._state.isFirstRun = false;
+                Main.notify(
+                    'Tahoe Widgets',
+                    'Click 🌊 in the top bar → "Add Widget" to get started!'
+                );
+            }
+
+            this._log.info('Tahoe Widgets enabled successfully');
+        } catch (e) {
+            this._log.error('Failed to enable:', e.message, e.stack);
+            // Clean up partial state so GNOME Shell doesn't crash
+            this._safeDisable();
+        }
     }
 
+    /* ══ disable ═══════════════════════════════════════════════════════ */
+
     disable() {
+        this._log?.info('Disabling Tahoe Widgets');
+        this._safeDisable();
+        this._log?.info('Disabled');
+        this._log = null;
+    }
+
+    _safeDisable() {
+        // Disconnect overview signals
         if (this._overviewShowId) {
             Main.overview.disconnect(this._overviewShowId);
             this._overviewShowId = null;
@@ -66,63 +166,55 @@ export default class TahoeWidgetsExtension extends Extension {
             this._overviewHideId = null;
         }
 
-        this._destroyWidgets();
-        this._container?.destroy();
-        this._container = null;
-        this._state?.save();
-        this._state     = null;
-        this._logger?.info('Extension disabled');
-        this._logger    = null;
+        // Teardown in reverse construction order
+        this._panelBtn?.destroy();  this._panelBtn = null;
+        this._picker?.destroy();    this._picker   = null;
+        this._registry?.destroyAll();
+        this._registry = null;
+        this._layout?.destroy();    this._layout   = null;
+        this._data?.destroy();      this._data     = null;
+        this._state?.destroy();     this._state    = null;
     }
 
-    _buildDesktopLayer() {
-        // Full-screen transparent actor layered just above the wallpaper
-        this._container = new WidgetContainer({
-            state:     this._state,
-            extension: this,
+    /* ══ Widget restoration ════════════════════════════════════════════ */
+
+    _restoreWidgets() {
+        const activeIds = this._state.getActiveWidgets();
+        this._log.info(`Restoring ${activeIds.length} widget(s):`, activeIds);
+
+        activeIds.forEach(id => {
+            try {
+                const widget = this._registry.instantiate(id, {
+                    data: this._data,
+                });
+                this._layout.addWidget(widget);
+            } catch (e) {
+                this._log.error(`Failed to restore widget '${id}':`, e.message);
+                // Remove broken widget from active list so it doesn't loop-crash
+                this._state.removeActiveWidget(id);
+            }
         });
-
-        Main.layoutManager._backgroundGroup.add_child(this._container.actor);
-        Main.layoutManager.connectObject(
-            'monitors-changed', () => this._onMonitorsChanged(), this
-        );
-
-        this._spawnWidgets();
     }
 
-    _spawnWidgets() {
-        const settings = this._state.getSettings();
-        const WidgetClasses = {
-            clock:       ClockWidget,
-            weather:     WeatherWidget,
-            calendar:    CalendarWidget,
-            worldClock:  WorldClockWidget,
-            battery:     BatteryWidget,
-            quickStatus: QuickStatusWidget,
+    /* ══ Registry → Layout wiring ═════════════════════════════════════ */
+
+    /**
+     * Monkey-patch the registry's instantiate/destroyWidget so that
+     * whenever the user adds or removes a widget via the picker,
+     * the layout canvas is automatically updated.
+     */
+    _wireRegistryToLayout() {
+        const origInstantiate = this._registry.instantiate.bind(this._registry);
+        this._registry.instantiate = (id, opts = {}) => {
+            const widget = origInstantiate(id, { ...opts, data: this._data });
+            this._layout.addWidget(widget);
+            return widget;
         };
 
-        settings.enabledWidgets.forEach(id => {
-            const Cls = WidgetClasses[id];
-            if (!Cls) return;
-
-            const widget = new Cls({
-                extension: this,
-                state:     this._state,
-                container: this._container,
-            });
-            this._widgets.push(widget);
-            this._container.addWidget(widget);
-        });
-    }
-
-    _destroyWidgets() {
-        this._widgets.forEach(w => w.destroy());
-        this._widgets = [];
-    }
-
-    _onMonitorsChanged() {
-        this._destroyWidgets();
-        this._container.reset();
-        this._spawnWidgets();
+        const origDestroy = this._registry.destroyWidget.bind(this._registry);
+        this._registry.destroyWidget = (id) => {
+            this._layout.removeWidget(id);
+            origDestroy(id);
+        };
     }
 }

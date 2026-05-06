@@ -1,153 +1,148 @@
 /**
- * WeatherWidget — current conditions + 5-hour forecast.
- * Data source: Open-Meteo (free, no API key needed).
- * Refreshes every 10 minutes.
+ * WeatherWidget v2
+ * - Subscribes to DataManager for push updates (no internal timer)
+ * - Shows loading skeleton on first load
+ * - Graceful error state with retry button
+ * - Reacts to unit/location setting changes
  */
 
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
-import GLib    from 'gi://GLib';
-import Gio     from 'gi://Gio';
-
-import { BaseWidget }    from './baseWidget.js';
-import { WeatherFetcher } from '../utils/weatherFetcher.js';
-
-// Geoclue for auto-location
-let Geoclue = null;
-try { Geoclue = (await import('gi://Geoclue')).default; } catch { /* optional */ }
+import { BaseWidget } from './baseWidget.js';
 
 export class WeatherWidget extends BaseWidget {
-    constructor(opts) {
-        super({ ...opts, id: 'weather', refreshMs: 10 * 60 * 1000 });
-        this._fetcher = new WeatherFetcher();
-    }
-
     build() {
         this.actor.add_style_class_name('tahoe-weather');
+        this.showLoading('Fetching weather…');
 
-        /* ── Location + icon row ─────────── */
-        const topRow = new St.BoxLayout({ vertical: false, style_class: 'tahoe-weather-top' });
-
-        this._locationLabel = new St.Label({
-            text:        '—',
-            style_class: 'tahoe-weather-location',
-            x_expand:    true,
-        });
-        this._iconLabel = new St.Label({ text: '—', style_class: 'tahoe-label-medium' });
-
-        topRow.add_child(this._locationLabel);
-        topRow.add_child(this._iconLabel);
-
-        /* ── Temp + description row ──────── */
-        const midRow = new St.BoxLayout({ vertical: false, style: 'spacing: 8px;' });
-
-        this._tempLabel = new St.Label({
-            text:        '--',
-            style_class: 'tahoe-weather-temp',
-            y_align:     Clutter.ActorAlign.CENTER,
-        });
-        this._unitLabel = new St.Label({
-            text:        '°',
-            style_class: 'tahoe-clock-ampm',
-            y_align:     Clutter.ActorAlign.CENTER,
-        });
-
-        const descCol = new St.BoxLayout({ vertical: true, x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER, style: 'padding-bottom:6px;' });
-        this._descLabel  = new St.Label({ text: '', style_class: 'tahoe-weather-desc' });
-        this._hiloLabel  = new St.Label({ text: '', style_class: 'tahoe-weather-hi-lo' });
-        descCol.add_child(this._descLabel);
-        descCol.add_child(this._hiloLabel);
-
-        midRow.add_child(this._tempLabel);
-        midRow.add_child(this._unitLabel);
-        midRow.add_child(descCol);
-
-        /* ── Forecast row ────────────────── */
-        this._forecastRow = new St.BoxLayout({
-            vertical:    false,
-            style_class: 'tahoe-forecast-row',
-            style:       'spacing:12px;',
-        });
-
-        /* ── Loading / error label ───────── */
-        this._statusLabel = new St.Label({
-            text:        'Loading…',
-            style_class: 'tahoe-label-small',
-        });
-
-        this.actor.add_child(topRow);
-        this.actor.add_child(midRow);
-        this.actor.add_child(this._forecastRow);
-        this.actor.add_child(this._statusLabel);
-    }
-
-    async refresh() {
-        const { weatherLocation, weatherUnit } = this._state.getSettings();
-
-        // Determine location
-        let loc = weatherLocation?.trim();
-        if (!loc) {
-            loc = await this._autoLocation();
-            if (!loc) {
-                this._statusLabel.set_text('Set location in settings');
-                return;
-            }
+        // Subscribe to DataManager weather updates
+        if (this._data) {
+            this._unsubs.push(
+                this._data.onWeather(ev => this._onWeatherUpdate(ev))
+            );
+            // If cached data already exists, render it immediately
+            const cached = this._data.getWeather();
+            if (cached) this._render(cached);
+        } else {
+            this.showError('DataManager not available');
         }
 
-        try {
-            const data = await this._fetcher.fetch(loc, weatherUnit);
+        // Re-trigger fetch when settings change
+        this._unsubs.push(
+            this._state.subscribe('settings:weather-location', () => {
+                this.showLoading('Updating…');
+                this._data?.fetchWeatherNow().catch(() => {});
+            }),
+            this._state.subscribe('settings:weather-unit', () => {
+                this._data?.fetchWeatherNow().catch(() => {});
+            }),
+        );
+    }
+
+    _onWeatherUpdate({ status, data, message }) {
+        if (status === 'ok') {
             this._render(data);
-            this._statusLabel.set_text('');
-        } catch (err) {
-            this._statusLabel.set_text(`⚠ ${err.message}`);
+        } else {
+            this._renderError(message);
         }
     }
 
     _render(d) {
-        this._locationLabel.set_text(d.location);
-        this._iconLabel.set_text(d.icon);
-        this._tempLabel.set_text(d.temperature);
-        this._unitLabel.set_text(d.unit);
-        this._descLabel.set_text(d.description);
-        this._hiloLabel.set_text(`H:${d.high}  L:${d.low}`);
+        this._content.remove_all_children();
 
-        // Rebuild forecast cells
-        this._forecastRow.remove_all_children();
-        d.forecast.forEach(f => {
-            const cell = new St.BoxLayout({
-                vertical:    true,
-                style_class: 'tahoe-forecast-cell',
-                style:       'spacing:2px; min-width:38px;',
-                x_align:     Clutter.ActorAlign.CENTER,
-            });
-            cell.add_child(new St.Label({ text: f.time, style_class: 'tahoe-forecast-hour',
+        // ── Location + icon ──────────────────────────────────────
+        const topRow = new St.BoxLayout({ vertical: false, x_expand: true,
+            style: 'spacing:6px;' });
+        topRow.add_child(new St.Label({ text: d.location,
+            style_class: 'tahoe-weather-location', x_expand: true }));
+        topRow.add_child(new St.Label({ text: d.icon,
+            style_class: 'tahoe-label-medium' }));
+        this._content.add_child(topRow);
+
+        // ── Temperature row ──────────────────────────────────────
+        const tempRow = new St.BoxLayout({ vertical: false,
+            style: 'spacing:2px;', y_align: Clutter.ActorAlign.CENTER });
+        tempRow.add_child(new St.Label({
+            text:        `${d.temperature}`,
+            style_class: 'tahoe-weather-temp',
+            y_align:     Clutter.ActorAlign.CENTER,
+        }));
+        tempRow.add_child(new St.Label({
+            text:        d.unit,
+            style_class: 'tahoe-clock-ampm',
+            y_align:     Clutter.ActorAlign.CENTER,
+        }));
+
+        const infoCol = new St.BoxLayout({ vertical: true, x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER, style: 'spacing:2px; padding-left:10px;' });
+        infoCol.add_child(new St.Label({ text: d.description,
+            style_class: 'tahoe-weather-desc' }));
+        infoCol.add_child(new St.Label({ text: `H:${d.high}  L:${d.low}`,
+            style_class: 'tahoe-weather-hi-lo' }));
+        infoCol.add_child(new St.Label({ text: `💧 ${d.humidity}  💨 ${d.wind}`,
+            style_class: 'tahoe-label-small tahoe-muted' }));
+
+        const midRow = new St.BoxLayout({ vertical: false });
+        midRow.add_child(tempRow);
+        midRow.add_child(infoCol);
+        this._content.add_child(midRow);
+
+        // ── Divider ──────────────────────────────────────────────
+        this._content.add_child(new St.Widget({
+            style: 'height:1px; background:rgba(255,255,255,0.12); margin:4px 0;',
+            x_expand: true,
+        }));
+
+        // ── Hourly forecast ──────────────────────────────────────
+        const forecastRow = new St.BoxLayout({ vertical: false,
+            style: 'spacing:8px;', x_expand: true });
+        d.forecast.slice(0, 6).forEach(f => {
+            const cell = new St.BoxLayout({ vertical: true,
+                style: 'spacing:2px; min-width:36px;',
+                x_align: Clutter.ActorAlign.CENTER });
+            cell.add_child(new St.Label({ text: f.time,
+                style_class: 'tahoe-forecast-hour',
                 x_align: Clutter.ActorAlign.CENTER }));
-            cell.add_child(new St.Label({ text: f.icon, style_class: 'tahoe-forecast-icon',
+            cell.add_child(new St.Label({ text: f.icon,
+                style_class: 'tahoe-forecast-icon',
                 x_align: Clutter.ActorAlign.CENTER }));
-            cell.add_child(new St.Label({ text: f.temp, style_class: 'tahoe-forecast-temp',
+            cell.add_child(new St.Label({ text: f.temp,
+                style_class: 'tahoe-forecast-temp',
                 x_align: Clutter.ActorAlign.CENTER }));
-            this._forecastRow.add_child(cell);
+            forecastRow.add_child(cell);
         });
+        this._content.add_child(forecastRow);
+
+        // ── Last updated ────────────────────────────────────────
+        const updated = new Date(d.fetchedAt);
+        const timeStr = updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        this._content.add_child(new St.Label({
+            text:        `Updated ${timeStr}`,
+            style_class: 'tahoe-label-small tahoe-muted',
+        }));
     }
 
-    async _autoLocation() {
-        if (!Geoclue) return null;
-        try {
-            const client = await Geoclue.Simple.new(
-                'tahoe-widgets', Geoclue.AccuracyLevel.CITY, null
-            );
-            const loc = client.get_location();
-            // Reverse-geocode via Open-Meteo (lat/lon → city name not needed;
-            // Open-Meteo accepts lat/lon directly)
-            return `${loc.get_latitude()},${loc.get_longitude()}`;
-        } catch {
-            return null;
-        }
-    }
+    _renderError(msg) {
+        this._content.remove_all_children();
 
-    destroy() {
-        this._fetcher.destroy();
-        super.destroy();
+        const box = new St.BoxLayout({ vertical: true, style: 'spacing:8px;',
+            x_align: Clutter.ActorAlign.CENTER });
+        box.add_child(new St.Label({ text: '☁️', style_class: 'tahoe-label-large',
+            x_align: Clutter.ActorAlign.CENTER }));
+        box.add_child(new St.Label({ text: msg || 'Weather unavailable',
+            style_class: 'tahoe-label-small tahoe-muted',
+            x_align: Clutter.ActorAlign.CENTER }));
+
+        // Retry button
+        const retryBtn = new St.Button({
+            label:       'Retry',
+            style_class: 'tahoe-btn',
+        });
+        retryBtn.connect('clicked', () => {
+            this.showLoading('Retrying…');
+            this._data?.fetchWeatherNow().catch(() => {});
+        });
+        box.add_child(retryBtn);
+        this._content.add_child(box);
     }
 }

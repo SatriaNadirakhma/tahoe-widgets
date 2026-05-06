@@ -1,0 +1,226 @@
+/**
+ * WidgetPicker — modal-style overlay that lets users
+ * add, remove, and see all available widgets.
+ *
+ * Triggered by the panel button or right-click → Add Widget.
+ * Slides in from the right.
+ */
+
+import St      from 'gi://St';
+import Clutter from 'gi://Clutter';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { Logger } from '../utils/logger.js';
+
+export class WidgetPicker {
+    constructor(registry, state) {
+        this._registry = registry;
+        this._state    = state;
+        this._log      = new Logger('Picker');
+        this._visible  = false;
+        this._build();
+    }
+
+    /* ══ Build UI ══════════════════════════════════════════════════════ */
+
+    _build() {
+        // ── Scrim ─────────────────────────────────────────────────────
+        this._scrim = new St.Widget({
+            reactive: true,
+            x: 0, y: 0,
+            width:  global.screen_width,
+            height: global.screen_height,
+            style:  'background: rgba(0,0,0,0.35);',
+            opacity: 0,
+        });
+        this._scrim.connect('button-press-event', () => { this.hide(); return Clutter.EVENT_STOP; });
+
+        // ── Panel ─────────────────────────────────────────────────────
+        this._panel = new St.BoxLayout({
+            vertical:    true,
+            width:       320,
+            style_class: 'tahoe-picker-panel',
+            style:       'padding: 20px; spacing: 0px;',
+        });
+
+        // Header
+        const header = new St.BoxLayout({ vertical: false,
+            style: 'margin-bottom:16px; spacing:8px;' });
+        header.add_child(new St.Label({
+            text:        'Add Widget',
+            style_class: 'tahoe-label-medium',
+            x_expand:    true,
+            y_align:     Clutter.ActorAlign.CENTER,
+        }));
+        const closeBtn = new St.Button({ label: '✕', style_class: 'tahoe-btn-icon',
+            y_align: Clutter.ActorAlign.CENTER });
+        closeBtn.connect('clicked', () => this.hide());
+        header.add_child(closeBtn);
+        this._panel.add_child(header);
+
+        // Divider
+        this._panel.add_child(new St.Widget({
+            x_expand: true, height: 1,
+            style: 'background: rgba(255,255,255,0.12); margin-bottom:12px;',
+        }));
+
+        // Scrollable list
+        const scroll = new St.ScrollView({
+            x_expand:  true,
+            y_expand:  true,
+            style:     'max-height: 460px;',
+        });
+        scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+
+        this._list = new St.BoxLayout({ vertical: true, style: 'spacing: 8px;' });
+        scroll.set_child(this._list);
+        this._panel.add_child(scroll);
+
+        // Footer
+        this._panel.add_child(new St.Widget({ x_expand: true, height: 1,
+            style: 'background: rgba(255,255,255,0.10); margin-top:12px; margin-bottom:12px;' }));
+
+        const resetBtn = new St.Button({ label: '⚠ Reset All to Defaults',
+            style_class: 'tahoe-btn tahoe-btn-danger', x_align: Clutter.ActorAlign.CENTER });
+        resetBtn.connect('clicked', () => this._onReset());
+        this._panel.add_child(resetBtn);
+
+        // Position panel right-side
+        this._repositionPanel();
+
+        // Add to chrome
+        Main.layoutManager.addChrome(this._scrim, { affectsStruts: false });
+        Main.layoutManager.addChrome(this._panel, { affectsStruts: false });
+
+        this._scrim.hide();
+        this._panel.hide();
+    }
+
+    /* ══ Public API ════════════════════════════════════════════════════ */
+
+    toggle() { this._visible ? this.hide() : this.show(); }
+
+    show() {
+        this._populateList();
+        this._repositionPanel();
+        this._scrim.show();
+        this._panel.show();
+
+        // Animate panel slide in
+        this._panel.set_pivot_point(1, 0.5);
+        this._panel.ease({
+            translation_x: 0,
+            opacity: 255,
+            duration: 220,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+        this._scrim.ease({ opacity: 255, duration: 200 });
+        this._visible = true;
+    }
+
+    hide() {
+        this._panel.ease({
+            translation_x: 340,
+            opacity: 0,
+            duration: 180,
+            mode: Clutter.AnimationMode.EASE_IN_QUAD,
+            onComplete: () => {
+                this._panel.hide();
+                this._scrim.hide();
+            },
+        });
+        this._scrim.ease({ opacity: 0, duration: 180 });
+        this._visible = false;
+    }
+
+    destroy() {
+        Main.layoutManager.removeChrome(this._scrim);
+        Main.layoutManager.removeChrome(this._panel);
+        this._scrim.destroy();
+        this._panel.destroy();
+    }
+
+    /* ══ Private ═══════════════════════════════════════════════════════ */
+
+    _repositionPanel() {
+        const m = Main.layoutManager.primaryMonitor;
+        this._panel.set_position(m.x + m.width - 340, m.y + this._state.topBarMargin + 8);
+        this._panel.height = m.height - this._state.topBarMargin - 24;
+        this._panel.translation_x = 340; // start off-screen
+    }
+
+    _populateList() {
+        this._list.remove_all_children();
+
+        const catalog = this._registry.getCatalog();
+        if (catalog.length === 0) {
+            this._list.add_child(new St.Label({
+                text:        'No widgets available',
+                style_class: 'tahoe-label-small tahoe-muted',
+            }));
+            return;
+        }
+
+        catalog.forEach(desc => {
+            const isActive = this._registry.isActive(desc.id);
+            this._list.add_child(this._makeCard(desc, isActive));
+        });
+    }
+
+    _makeCard(desc, isActive) {
+        const card = new St.BoxLayout({
+            vertical:    false,
+            style_class: `tahoe-picker-card${isActive ? ' tahoe-picker-card-active' : ''}`,
+            style:       'spacing:12px; padding:12px; border-radius:14px; ' +
+                         `background: rgba(255,255,255,${isActive ? '0.18' : '0.08'}); ` +
+                         'border: 1px solid rgba(255,255,255,0.14); margin-bottom:4px;',
+            reactive: true,
+        });
+
+        // Icon
+        card.add_child(new St.Label({
+            text:        desc.icon ?? '🔲',
+            style_class: 'tahoe-picker-icon',
+            style:       'font-size:28px; min-width:36px;',
+            y_align:     Clutter.ActorAlign.CENTER,
+        }));
+
+        // Text block
+        const textCol = new St.BoxLayout({ vertical: true, x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER, style: 'spacing:2px;' });
+        textCol.add_child(new St.Label({ text: desc.label ?? desc.id,
+            style_class: 'tahoe-label' }));
+        textCol.add_child(new St.Label({ text: desc.description ?? '',
+            style_class: 'tahoe-label-small tahoe-muted' }));
+        card.add_child(textCol);
+
+        // Toggle button
+        const btn = new St.Button({
+            label:       isActive ? 'Remove' : 'Add',
+            style_class: `tahoe-btn${isActive ? ' tahoe-btn-danger' : ''}`,
+            y_align:     Clutter.ActorAlign.CENTER,
+        });
+        btn.connect('clicked', () => {
+            if (this._registry.isActive(desc.id)) {
+                this._registry.destroyWidget(desc.id);
+            } else {
+                try {
+                    this._registry.instantiate(desc.id);
+                } catch (e) {
+                    this._log.error('Failed to add widget', e.message);
+                }
+            }
+            // Refresh list
+            this._populateList();
+        });
+        card.add_child(btn);
+
+        return card;
+    }
+
+    _onReset() {
+        this._state.resetAll();
+        this._registry.destroyAll();
+        this.hide();
+        Main.notify('Tahoe Widgets', 'All widgets removed and settings reset.');
+    }
+}

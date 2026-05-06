@@ -1,370 +1,289 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Tahoe Widgets — Stylesheet
-   Glassmorphism-inspired, Apple-like but original.
-   Uses GNOME Shell CSS (subset of CSS3 + St-specific properties).
+   Tahoe Widgets v2 — Stylesheet
+   All component styles in one file. Uses only CSS3 subset
+   supported by GNOME Shell / St (no variables, no calc() in some
+   older GNOME builds — keep it compatible to GNOME 45).
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Design tokens ────────────────────────────────────────────────── */
-/* All colour references use rgba so opacity is independently tunable */
+/* ── Base widget panel ────────────────────────────────────────────── */
 
-/* Base widget panel */
 .tahoe-widget {
-    /* Frosted glass: semi-transparent white fill */
     background-color: rgba(255, 255, 255, 0.14);
-
-    /* Hairline border for depth illusion */
-    border: 1px solid rgba(255, 255, 255, 0.28);
-
-    /* Shadow for lift effect */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28),
-                0 1px  0   rgba(255, 255, 255, 0.12) inset;
-
-    /* Rounded corners — overridable per widget */
-    border-radius: 20px;
-
-    /* Internal padding */
-    padding: 18px;
-
-    /* Min dimensions to prevent collapse */
-    min-width: 120px;
-    min-height: 64px;
-
-    /* Smooth hover transitions */
-    transition-duration: 180ms;
-    transition-timing-function: ease-out;
+    border:           1px solid rgba(255, 255, 255, 0.26);
+    border-radius:    20px;
+    padding:          18px 20px;
+    box-shadow:       0 8px 32px rgba(0, 0, 0, 0.30),
+                      0 1px 0   rgba(255, 255, 255, 0.10) inset;
+    min-width:        160px;
 }
 
-/* Dark-mode variant (auto-applied when shell theme is dark) */
-.tahoe-widget.dark {
-    background-color: rgba(20, 20, 28, 0.60);
-    border-color:     rgba(255, 255, 255, 0.10);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.48),
-                0 1px  0   rgba(255, 255, 255, 0.06) inset;
-}
-
-/* Hover / active states */
-.tahoe-widget:hover {
+/* Hover */
+.tahoe-widget.tahoe-widget-hover {
     background-color: rgba(255, 255, 255, 0.20);
-    border-color:     rgba(255, 255, 255, 0.38);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.36),
-                0 1px  0   rgba(255, 255, 255, 0.18) inset;
+    border-color:     rgba(255, 255, 255, 0.36);
+    box-shadow:       0 12px 40px rgba(0, 0, 0, 0.36),
+                      0 1px 0    rgba(255, 255, 255, 0.16) inset;
+    transition-duration: 150ms;
 }
 
-/* Drag state */
-.tahoe-widget.dragging {
-    background-color: rgba(255, 255, 255, 0.26);
-    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.44);
-    /* Slight scale up — GNOME Shell supports scale via St */
-    opacity: 0.92;
+/* Drag */
+.tahoe-widget.tahoe-dragging {
+    background-color: rgba(255, 255, 255, 0.24);
+    box-shadow:       0 20px 56px rgba(0, 0, 0, 0.44);
+    opacity:          0.90;
 }
 
-/* ── Typography ──────────────────────────────────────────────────── */
+/* Edit mode outline */
+.tahoe-widget.tahoe-edit-mode {
+    border-color:     rgba(80, 160, 255, 0.55);
+    border-width:     2px;
+    border-style:     dashed;
+}
+
+/* Drag handle strip */
+.tahoe-drag-handle {
+    background-color: rgba(255, 255, 255, 0.30);
+    border-radius:    2px;
+    margin-bottom:    8px;
+    transition-duration: 150ms;
+}
+
+/* ── Typography ───────────────────────────────────────────────────── */
+
 .tahoe-label {
-    color: rgba(255, 255, 255, 0.92);
-    font-family: "SF Pro Display", "Cantarell", "Noto Sans", sans-serif;
+    color:       rgba(255, 255, 255, 0.90);
+    font-family: "Cantarell", "Noto Sans", sans-serif;
+    font-size:   14px;
 }
 
 .tahoe-label-large {
-    font-size: 48px;
-    font-weight: 200;
+    font-size:      52px;
+    font-weight:    100;
     letter-spacing: -2px;
-    color: rgba(255, 255, 255, 0.96);
+    color:          rgba(255, 255, 255, 0.96);
 }
 
 .tahoe-label-medium {
-    font-size: 20px;
+    font-size:   20px;
     font-weight: 300;
-    letter-spacing: -0.4px;
-    color: rgba(255, 255, 255, 0.88);
+    color:       rgba(255, 255, 255, 0.88);
 }
 
 .tahoe-label-small {
-    font-size: 12px;
+    font-size:   12px;
     font-weight: 400;
-    letter-spacing: 0.2px;
-    color: rgba(255, 255, 255, 0.62);
+    color:       rgba(255, 255, 255, 0.65);
 }
 
 .tahoe-label-caption {
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
+    font-size:       10px;
+    font-weight:     600;
+    letter-spacing:  0.8px;
+    text-transform:  uppercase;
+    color:           rgba(255, 255, 255, 0.42);
+}
+
+.tahoe-muted {
     color: rgba(255, 255, 255, 0.48);
 }
 
-/* ── Clock widget ─────────────────────────────────────────────────── */
-.tahoe-clock {
-    min-width: 180px;
-    min-height: 100px;
-    padding: 22px 26px;
-}
+/* ── Buttons ──────────────────────────────────────────────────────── */
 
-.tahoe-clock-time {
-    font-size: 56px;
-    font-weight: 100;
-    letter-spacing: -3px;
-    color: rgba(255, 255, 255, 0.96);
-    font-family: "SF Pro Display", "Cantarell", sans-serif;
-}
-
-.tahoe-clock-date {
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.1px;
-    color: rgba(255, 255, 255, 0.60);
-    margin-top: 2px;
-}
-
-.tahoe-clock-ampm {
-    font-size: 18px;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.70);
-    margin-left: 4px;
-    vertical-align: bottom;
-    padding-bottom: 8px;
-}
-
-/* ── Weather widget ───────────────────────────────────────────────── */
-.tahoe-weather {
-    min-width: 280px;
-    min-height: 140px;
-}
-
-.tahoe-weather-temp {
-    font-size: 52px;
-    font-weight: 100;
-    letter-spacing: -2px;
-    color: rgba(255, 255, 255, 0.95);
-}
-
-.tahoe-weather-desc {
-    font-size: 14px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.65);
-}
-
-.tahoe-weather-location {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: rgba(255, 255, 255, 0.90);
-    margin-bottom: 4px;
-}
-
-.tahoe-weather-hi-lo {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.55);
-}
-
-/* Hourly forecast row */
-.tahoe-forecast-row {
-    spacing: 12px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.tahoe-forecast-cell {
-    min-width: 38px;
-    spacing: 4px;
-}
-
-.tahoe-forecast-hour {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.50);
-}
-
-.tahoe-forecast-icon {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.80);
-}
-
-.tahoe-forecast-temp {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.85);
-}
-
-/* ── Calendar widget ─────────────────────────────────────────────── */
-.tahoe-calendar {
-    min-width: 260px;
-}
-
-.tahoe-calendar-header {
-    color: rgba(255, 255, 255, 0.90);
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.tahoe-calendar-grid {
-    spacing: 2px;
-}
-
-.tahoe-cal-day-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.42);
-    min-width: 30px;
-    text-align: center;
-}
-
-.tahoe-cal-day {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.75);
-    min-width: 30px;
-    min-height: 26px;
-    border-radius: 13px;
-    text-align: center;
+.tahoe-btn {
+    background-color: rgba(255, 255, 255, 0.14);
+    border:           1px solid rgba(255, 255, 255, 0.22);
+    border-radius:    8px;
+    padding:          6px 14px;
+    color:            rgba(255, 255, 255, 0.88);
+    font-size:        13px;
     transition-duration: 120ms;
 }
 
-.tahoe-cal-day:hover {
-    background-color: rgba(255, 255, 255, 0.14);
+.tahoe-btn:hover {
+    background-color: rgba(255, 255, 255, 0.22);
 }
 
-.tahoe-cal-day.today {
-    background-color: rgba(255, 255, 255, 0.90);
-    color: rgba(0, 0, 0, 0.85);
+.tahoe-btn:active {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.tahoe-btn-danger {
+    background-color: rgba(220, 60, 60, 0.20);
+    border-color:     rgba(220, 60, 60, 0.35);
+    color:            rgba(255, 120, 120, 0.95);
+}
+
+.tahoe-btn-danger:hover {
+    background-color: rgba(220, 60, 60, 0.32);
+}
+
+.tahoe-btn-icon {
+    background:    transparent;
+    border:        none;
+    color:         rgba(255, 255, 255, 0.55);
+    padding:       4px 8px;
+    border-radius: 6px;
+    font-size:     16px;
+}
+
+.tahoe-btn-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color:      rgba(255, 255, 255, 0.90);
+}
+
+/* ── Clock widget ─────────────────────────────────────────────────── */
+
+.tahoe-clock { min-width: 190px; }
+
+.tahoe-clock-time {
+    font-size:      54px;
+    font-weight:    100;
+    letter-spacing: -2px;
+    color:          rgba(255, 255, 255, 0.96);
+    font-family:    "Cantarell", sans-serif;
+}
+
+.tahoe-clock-ampm {
+    font-size:   18px;
+    font-weight: 300;
+    color:       rgba(255, 255, 255, 0.68);
+    padding-bottom: 6px;
+}
+
+.tahoe-clock-date {
+    font-size:   13px;
+    font-weight: 400;
+    color:       rgba(255, 255, 255, 0.58);
+    margin-top:  2px;
+}
+
+/* ── Weather widget ───────────────────────────────────────────────── */
+
+.tahoe-weather     { min-width: 290px; }
+
+.tahoe-weather-location {
+    font-size:   14px;
     font-weight: 600;
+    color:       rgba(255, 255, 255, 0.90);
 }
 
-.tahoe-cal-day.other-month {
-    color: rgba(255, 255, 255, 0.28);
+.tahoe-weather-temp {
+    font-size:      50px;
+    font-weight:    100;
+    letter-spacing: -2px;
+    color:          rgba(255, 255, 255, 0.96);
 }
 
-/* ── World clock widget ──────────────────────────────────────────── */
-.tahoe-world-clock {
-    min-width: 260px;
+.tahoe-weather-desc  { font-size: 13px; color: rgba(255,255,255,0.65); }
+.tahoe-weather-hi-lo { font-size: 12px; color: rgba(255,255,255,0.50); }
+
+.tahoe-forecast-hour { font-size: 11px; color: rgba(255,255,255,0.48); }
+.tahoe-forecast-icon { font-size: 15px; }
+.tahoe-forecast-temp { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.82); }
+
+/* ── Calendar widget ──────────────────────────────────────────────── */
+
+.tahoe-calendar  { min-width: 270px; }
+
+.tahoe-calendar-header {
+    font-size:   15px;
+    font-weight: 600;
+    color:       rgba(255, 255, 255, 0.90);
 }
+
+.tahoe-cal-nav {
+    background:    transparent;
+    border:        none;
+    color:         rgba(255, 255, 255, 0.60);
+    font-size:     18px;
+    padding:       0 6px;
+    border-radius: 6px;
+}
+
+.tahoe-cal-nav:hover {
+    background: rgba(255,255,255,0.10);
+    color:      rgba(255,255,255,0.90);
+}
+
+.tahoe-cal-day-label {
+    font-size:       10px;
+    font-weight:     600;
+    letter-spacing:  0.4px;
+    text-transform:  uppercase;
+    color:           rgba(255, 255, 255, 0.38);
+    min-width:       30px;
+    min-height:      22px;
+}
+
+.tahoe-cal-day {
+    font-size:    13px;
+    color:        rgba(255, 255, 255, 0.75);
+    min-width:    30px;
+    min-height:   26px;
+    border-radius: 13px;
+}
+
+.tahoe-cal-today {
+    background-color: rgba(255, 255, 255, 0.90);
+    color:            rgba(0, 0, 0, 0.82);
+    font-weight:      600;
+}
+
+.tahoe-cal-other {
+    color: rgba(255, 255, 255, 0.26);
+}
+
+/* ── World clock ──────────────────────────────────────────────────── */
+
+.tahoe-world-clock   { min-width: 260px; }
 
 .tahoe-world-clock-row {
-    spacing: 12px;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 7px 0;
 }
 
-.tahoe-world-clock-row:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.tahoe-world-city {
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.88);
-    min-width: 100px;
-}
-
-.tahoe-world-offset {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.42);
-    font-weight: 400;
-}
+.tahoe-world-city   { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.88); }
+.tahoe-world-offset { font-size: 11px; color: rgba(255,255,255,0.40); }
 
 .tahoe-world-time {
-    font-size: 20px;
-    font-weight: 200;
+    font-size:      20px;
+    font-weight:    200;
     letter-spacing: -0.5px;
-    color: rgba(255, 255, 255, 0.92);
+    color:          rgba(255, 255, 255, 0.92);
 }
 
-/* ── Battery widget ──────────────────────────────────────────────── */
-.tahoe-battery {
-    min-width: 180px;
-    padding: 16px 20px;
-}
+/* ── Battery widget ───────────────────────────────────────────────── */
 
-.tahoe-battery-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.80);
-    margin-bottom: 8px;
-}
-
-.tahoe-battery-bar-bg {
-    background-color: rgba(255, 255, 255, 0.14);
-    border-radius: 4px;
-    height: 8px;
-}
-
-.tahoe-battery-bar-fill {
-    background-color: rgba(255, 255, 255, 0.80);
-    border-radius: 4px;
-    height: 8px;
-    transition-duration: 400ms;
-}
-
-.tahoe-battery-bar-fill.low {
-    background-color: rgba(255, 90, 90, 0.90);
-}
-
-.tahoe-battery-bar-fill.charging {
-    background-color: rgba(100, 220, 120, 0.90);
-}
-
+.tahoe-battery       { min-width: 190px; }
 .tahoe-battery-percent {
-    font-size: 28px;
-    font-weight: 200;
-    color: rgba(255, 255, 255, 0.92);
+    font-size:      30px;
+    font-weight:    200;
     letter-spacing: -1px;
+    color:          rgba(255, 255, 255, 0.92);
 }
 
-/* ── Quick status widget ─────────────────────────────────────────── */
-.tahoe-quick-status {
-    min-width: 150px;
-    padding: 16px;
+/* ── Quick status ─────────────────────────────────────────────────── */
+
+.tahoe-quick-status  { min-width: 200px; }
+.tahoe-status-icon   { font-size: 16px; min-width: 20px; }
+.tahoe-status-text   { font-size: 13px; color: rgba(255,255,255,0.80); }
+.tahoe-status-value  { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.52); }
+
+/* ── Widget Picker panel ──────────────────────────────────────────── */
+
+.tahoe-picker-panel {
+    background-color: rgba(20, 20, 30, 0.86);
+    border:           1px solid rgba(255, 255, 255, 0.12);
+    border-radius:    20px;
+    box-shadow:       0 16px 60px rgba(0, 0, 0, 0.55);
 }
 
-.tahoe-status-row {
-    spacing: 10px;
-    padding: 6px 0;
+.tahoe-picker-card {
+    transition-duration: 120ms;
 }
 
-.tahoe-status-icon {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.80);
-    min-width: 22px;
+.tahoe-picker-card:hover {
+    background: rgba(255,255,255,0.14) !important;
 }
 
-.tahoe-status-text {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.80);
-}
-
-.tahoe-status-value {
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.55);
-}
-
-/* ── Drag handle (visible on hover) ─────────────────────────────── */
-.tahoe-drag-handle {
-    background-color: rgba(255, 255, 255, 0.28);
-    border-radius: 3px;
-    width: 32px;
-    height: 4px;
-    margin: 0 auto 10px auto;
-    opacity: 0;
-    transition-duration: 180ms;
-}
-
-.tahoe-widget:hover .tahoe-drag-handle {
-    opacity: 1;
-}
-
-/* ── Edit mode overlay ───────────────────────────────────────────── */
-.tahoe-edit-overlay {
-    background-color: rgba(0, 120, 255, 0.08);
-    border: 2px dashed rgba(0, 140, 255, 0.55);
-    border-radius: 20px;
-}
-
-.tahoe-snap-indicator {
-    background-color: rgba(0, 140, 255, 0.22);
-    border: 1px solid rgba(0, 140, 255, 0.50);
-    border-radius: 20px;
-}
+.tahoe-picker-icon { min-width: 36px; }
