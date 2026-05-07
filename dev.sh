@@ -4,7 +4,7 @@
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-UUID="tahoe-widgets@gnome"
+UUID="tahoe-widgets"
 DEST="${HOME}/.local/share/gnome-shell/extensions/${UUID}"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
