@@ -1,7 +1,7 @@
 /**
- * prefs.js v2 — Production settings panel using Adw + Gtk4.
- * Sections: Appearance · Layout · Clock · Weather · World Clock · Widgets · About
- * All changes apply live (GSettings bindings).
+ * prefs.js v2.1 — Settings panel, GNOME 45-50 compatible.
+ * FIX: Never pass undefined into Gtk/Adw constructors.
+ *      All optional properties set via setter methods only.
  */
 
 import Adw  from 'gi://Adw';
@@ -16,7 +16,6 @@ export default class TahoePreferences extends ExtensionPreferences {
         const s = this.getSettings();
         win.set_default_size(680, 760);
         win.set_title('Tahoe Widgets');
-
         win.add(this._appearancePage(s));
         win.add(this._layoutPage(s));
         win.add(this._clockPage(s));
@@ -26,25 +25,23 @@ export default class TahoePreferences extends ExtensionPreferences {
         win.add(this._aboutPage());
     }
 
-    /* ══ Pages ════════════════════════════════════════════════════════ */
+    /* ══ Pages ══════════════════════════════════════════════════════ */
 
     _appearancePage(s) {
         const page = this._page('Appearance', 'preferences-desktop-appearance-symbolic');
 
-        // Visual group
         const vg = this._group('Visual Style');
-        vg.add(this._spinRow(s, 'blur-radius',    'Blur Radius',    'Glassmorphism blur strength (px)', 0, 60, 2));
-        vg.add(this._scaleRow(s, 'panel-opacity',  'Panel Opacity',  'Background fill opacity',          0.05, 0.95, 0.05));
-        vg.add(this._spinRow(s, 'corner-radius',  'Corner Radius',  'Widget rounded corners (px)',       4, 36, 2));
-        vg.add(this._spinRow(s, 'widget-spacing', 'Widget Spacing', 'Default gap when auto-placed (px)', 4, 64, 4));
+        vg.add(this._spinRow(s, 'blur-radius',    'Blur Radius',    0, 60, 2));
+        vg.add(this._spinRow(s, 'corner-radius',  'Corner Radius',  4, 36, 2));
+        vg.add(this._spinRow(s, 'widget-spacing', 'Widget Spacing', 4, 64, 4));
+        vg.add(this._scaleRow(s, 'panel-opacity', 'Panel Opacity',  0.05, 0.95, 0.05));
         page.add(vg);
 
-        // Color scheme
         const cg = this._group('Color Scheme');
-        cg.add(this._comboRow(s, 'color-scheme', 'Theme', 'Adapt widget tint to shell theme',
+        cg.add(this._comboRow(s, 'color-scheme', 'Theme',
             [{ value: 'auto',  label: 'Automatic (follow shell)' },
-             { value: 'light', label: 'Light'  },
-             { value: 'dark',  label: 'Dark'   }]));
+             { value: 'light', label: 'Light' },
+             { value: 'dark',  label: 'Dark'  }]));
         page.add(cg);
 
         return page;
@@ -54,17 +51,13 @@ export default class TahoePreferences extends ExtensionPreferences {
         const page = this._page('Layout', 'view-grid-symbolic');
 
         const sg = this._group('Snapping');
-        sg.add(this._switchRow(s, 'snap-to-grid', 'Snap to Grid',
-            'Align widgets to a pixel grid while dragging'));
-        sg.add(this._spinRow(s, 'grid-size', 'Grid Size',
-            'Snap grid resolution (px)', 4, 64, 4));
+        sg.add(this._switchRow(s, 'snap-to-grid', 'Snap to Grid'));
+        sg.add(this._spinRow(s, 'grid-size', 'Grid Size', 4, 64, 4));
         page.add(sg);
 
         const mg = this._group('Safe Area');
-        mg.add(this._spinRow(s, 'top-bar-margin', 'Top Bar Margin',
-            'Pixels reserved below the top bar', 0, 120, 4));
-        mg.add(this._spinRow(s, 'dock-margin', 'Dock Margin',
-            'Pixels reserved above the dock/bottom panel', 0, 200, 8));
+        mg.add(this._spinRow(s, 'top-bar-margin', 'Top Bar Margin', 0, 120, 4));
+        mg.add(this._spinRow(s, 'dock-margin',    'Dock Margin',    0, 200, 8));
         page.add(mg);
 
         return page;
@@ -74,11 +67,10 @@ export default class TahoePreferences extends ExtensionPreferences {
         const page = this._page('Clock', 'clock-symbolic');
 
         const cg = this._group('Display');
-        cg.add(this._comboRow(s, 'clock-format', 'Format', 'Time display style',
+        cg.add(this._comboRow(s, 'clock-format', 'Format',
             [{ value: '12h', label: '12-hour (AM/PM)' },
              { value: '24h', label: '24-hour'          }]));
-        cg.add(this._switchRow(s, 'clock-show-seconds', 'Show Seconds',
-            'Display seconds in the clock'));
+        cg.add(this._switchRow(s, 'clock-show-seconds', 'Show Seconds'));
         page.add(cg);
 
         return page;
@@ -89,15 +81,14 @@ export default class TahoePreferences extends ExtensionPreferences {
 
         const lg = this._group('Location');
         lg.add(this._entryRow(s, 'weather-location', 'City',
-            'City name — leave blank for automatic detection'));
-        lg.add(this._comboRow(s, 'weather-unit', 'Unit', 'Temperature unit',
-            [{ value: 'celsius',    label: 'Celsius (°C)'     },
-             { value: 'fahrenheit', label: 'Fahrenheit (°F)'  }]));
+            'Leave blank for automatic detection'));
+        lg.add(this._comboRow(s, 'weather-unit', 'Unit',
+            [{ value: 'celsius',    label: 'Celsius (°C)'    },
+             { value: 'fahrenheit', label: 'Fahrenheit (°F)' }]));
         page.add(lg);
 
         const rg = this._group('Refresh');
-        rg.add(this._spinRow(s, 'weather-refresh-minutes', 'Interval',
-            'How often to fetch new weather data (minutes)', 5, 120, 5));
+        rg.add(this._spinRow(s, 'weather-refresh-minutes', 'Interval (minutes)', 5, 120, 5));
         page.add(rg);
 
         return page;
@@ -106,10 +97,9 @@ export default class TahoePreferences extends ExtensionPreferences {
     _worldClockPage(s) {
         const page = this._page('World Clock', 'globe-symbolic');
 
-        const wg = this._group('Timezones',
-            'One IANA timezone per line — e.g. America/New_York');
+        const wg = this._group('Timezones');
+        wg.set_description('One IANA timezone per line — e.g. America/New_York');
 
-        // Text editor for timezone list
         const buf = new Gtk.TextBuffer();
         buf.set_text(s.get_strv('world-clock-zones').join('\n'), -1);
 
@@ -117,7 +107,8 @@ export default class TahoePreferences extends ExtensionPreferences {
         buf.connect('changed', () => {
             if (saveTimer) GLib.source_remove(saveTimer);
             saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 500, () => {
-                const text  = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), false);
+                const text  = buf.get_text(
+                    buf.get_start_iter(), buf.get_end_iter(), false);
                 const zones = text.split('\n').map(l => l.trim()).filter(Boolean);
                 s.set_strv('world-clock-zones', zones);
                 saveTimer = null;
@@ -126,18 +117,24 @@ export default class TahoePreferences extends ExtensionPreferences {
         });
 
         const tv = new Gtk.TextView({
-            buffer:       buf,
-            monospace:    true,
-            margin_top:   8, margin_bottom: 8,
-            margin_start: 8, margin_end:   8,
-            wrap_mode:    Gtk.WrapMode.NONE,
+            buffer:        buf,
+            monospace:     true,
+            margin_top:    8,
+            margin_bottom: 8,
+            margin_start:  8,
+            margin_end:    8,
+            wrap_mode:     Gtk.WrapMode.NONE,
         });
-        const frame = new Gtk.Frame({ child: tv });
-        const row   = new Adw.ActionRow({ title: 'Timezone List' });
+
+        const frame = new Gtk.Frame();
+        frame.set_child(tv);
+
+        const row = new Adw.ActionRow();
+        row.set_title('Timezone List');
         row.set_child(frame);
         wg.add(row);
-        page.add(wg);
 
+        page.add(wg);
         return page;
     }
 
@@ -145,24 +142,26 @@ export default class TahoePreferences extends ExtensionPreferences {
         const page = this._page('Widgets', 'view-app-grid-symbolic');
 
         const all = [
-            { id: 'clock',       icon: '🕐', label: 'Clock',        desc: 'Live digital clock' },
-            { id: 'weather',     icon: '🌤️', label: 'Weather',       desc: 'Conditions + forecast' },
-            { id: 'calendar',    icon: '📅', label: 'Calendar',      desc: 'Monthly mini-calendar' },
-            { id: 'worldClock',  icon: '🌍', label: 'World Clock',   desc: 'Multi-timezone display' },
-            { id: 'battery',     icon: '🔋', label: 'Battery',       desc: 'Battery + devices' },
-            { id: 'quickStatus', icon: '📊', label: 'Quick Status',  desc: 'Wi-Fi, CPU, RAM' },
+            { id: 'clock',       icon: '🕐', label: 'Clock',       desc: 'Live digital clock'       },
+            { id: 'weather',     icon: '🌤️', label: 'Weather',      desc: 'Conditions + forecast'    },
+            { id: 'calendar',    icon: '📅', label: 'Calendar',     desc: 'Monthly mini-calendar'    },
+            { id: 'worldClock',  icon: '🌍', label: 'World Clock',  desc: 'Multi-timezone display'   },
+            { id: 'battery',     icon: '🔋', label: 'Battery',      desc: 'Battery + devices'        },
+            { id: 'quickStatus', icon: '📊', label: 'Quick Status', desc: 'Wi-Fi, CPU, RAM'          },
         ];
 
-        const wg = this._group('Enable / Disable',
-            'Changes apply after toggling the extension or restarting GNOME Shell');
+        const wg = this._group('Enable / Disable');
+        wg.set_description('Changes apply after toggling the extension');
 
         all.forEach(({ id, icon, label, desc }) => {
             const active = s.get_strv('active-widgets').includes(id);
-            const row    = new Adw.ActionRow({
-                title:    `${icon}  ${label}`,
-                subtitle: desc,
-            });
-            const sw = new Gtk.Switch({ active, valign: Gtk.Align.CENTER });
+
+            const row = new Adw.ActionRow();
+            row.set_title(`${icon}  ${label}`);
+            row.set_subtitle(desc);
+
+            const sw = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+            sw.set_active(active);
             sw.connect('state-set', (_w, state) => {
                 const cur  = s.get_strv('active-widgets');
                 const next = state
@@ -171,46 +170,47 @@ export default class TahoePreferences extends ExtensionPreferences {
                 s.set_strv('active-widgets', next);
                 return false;
             });
+
             row.add_suffix(sw);
             row.set_activatable_widget(sw);
             wg.add(row);
         });
+
         page.add(wg);
 
-        // Danger zone
+        /* Danger zone */
         const dg = this._group('Danger Zone');
-        const resetRow = new Adw.ActionRow({
-            title:    'Reset All Settings',
-            subtitle: 'Remove all widgets and restore defaults',
-        });
-        const resetBtn = new Gtk.Button({
-            label:   'Reset',
-            css_classes: ['destructive-action'],
-            valign:  Gtk.Align.CENTER,
-        });
+
+        const resetRow = new Adw.ActionRow();
+        resetRow.set_title('Reset All Settings');
+        resetRow.set_subtitle('Remove all widgets and restore defaults');
+
+        const resetBtn = new Gtk.Button();
+        resetBtn.set_label('Reset');
+        resetBtn.set_valign(Gtk.Align.CENTER);
+        resetBtn.add_css_class('destructive-action');
         resetBtn.connect('clicked', () => {
-            const dialog = new Adw.MessageDialog({
-                heading:        'Reset All Settings?',
-                body:           'All widgets will be removed and settings restored to defaults.',
-                default_response: 'cancel',
-            });
+            const dialog = new Adw.MessageDialog();
+            dialog.set_heading('Reset All Settings?');
+            dialog.set_body(
+                'All widgets will be removed and settings restored to defaults.');
             dialog.add_response('cancel', 'Cancel');
-            dialog.add_response('reset', 'Reset');
+            dialog.add_response('reset',  'Reset');
             dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.set_default_response('cancel');
             dialog.connect('response', (_d, res) => {
-                if (res === 'reset') {
-                    // Reset each key individually
-                    [
-                        'blur-radius','panel-opacity','corner-radius','widget-spacing',
-                        'color-scheme','snap-to-grid','grid-size','top-bar-margin','dock-margin',
-                        'clock-format','clock-show-seconds','weather-location','weather-unit',
-                        'weather-refresh-minutes','world-clock-zones','active-widgets','widget-states',
-                        'first-run',
-                    ].forEach(k => s.reset(k));
-                }
+                if (res !== 'reset') return;
+                [
+                    'blur-radius','panel-opacity','corner-radius','widget-spacing',
+                    'color-scheme','snap-to-grid','grid-size','top-bar-margin',
+                    'dock-margin','clock-format','clock-show-seconds',
+                    'weather-location','weather-unit','weather-refresh-minutes',
+                    'world-clock-zones','active-widgets','widget-states','first-run',
+                ].forEach(k => s.reset(k));
             });
             dialog.present();
         });
+
         resetRow.add_suffix(resetBtn);
         dg.add(resetRow);
         page.add(dg);
@@ -220,112 +220,128 @@ export default class TahoePreferences extends ExtensionPreferences {
 
     _aboutPage() {
         const page = this._page('About', 'help-about-symbolic');
+        const ag   = this._group('Tahoe Widgets');
 
-        const ag = this._group('Tahoe Widgets');
-        const infoRow = new Adw.ActionRow({
-            title:    'Version',
-            subtitle: '2.0.0 — GNOME 45–50',
-        });
-        ag.add(infoRow);
+        const ver = new Adw.ActionRow();
+        ver.set_title('Version');
+        ver.set_subtitle('2.0.0 — GNOME 45–50');
+        ag.add(ver);
 
-        const srcRow = new Adw.ActionRow({
-            title:    'Source Code',
-            subtitle: 'github.com/yourname/tahoe-widgets',
-            activatable: true,
-        });
-        srcRow.add_suffix(new Gtk.Image({ icon_name: 'external-link-symbolic' }));
-        srcRow.connect('activated', () => {
+        const src = new Adw.ActionRow();
+        src.set_title('Source Code');
+        src.set_subtitle('github.com/yourname/tahoe-widgets');
+        src.set_activatable(true);
+        src.add_suffix(new Gtk.Image({ icon_name: 'external-link-symbolic' }));
+        src.connect('activated', () => {
             Gio.AppInfo.launch_default_for_uri(
-                'https://github.com/yourname/tahoe-widgets', null
-            );
+                'https://github.com/yourname/tahoe-widgets', null);
         });
-        ag.add(srcRow);
+        ag.add(src);
 
-        const licRow = new Adw.ActionRow({
-            title:    'License',
-            subtitle: 'GNU General Public License v2.0 or later',
-        });
-        ag.add(licRow);
+        const lic = new Adw.ActionRow();
+        lic.set_title('License');
+        lic.set_subtitle('GNU General Public License v2.0 or later');
+        ag.add(lic);
 
         page.add(ag);
         return page;
     }
 
-    /* ══ Row factories ════════════════════════════════════════════════ */
+    /* ══ Row / page factories ═══════════════════════════════════════ */
 
-    _page(title, icon) {
-        return new Adw.PreferencesPage({ title, icon_name: icon });
+    /** Always creates a clean page — no undefined */
+    _page(title, iconName) {
+        const p = new Adw.PreferencesPage();
+        p.set_title(title);
+        p.set_icon_name(iconName);
+        return p;
     }
 
-    _group(title, description) {
-        const group = new Adw.PreferencesGroup({ title });
-        if (description) group.set_description(description);
-        return group;
+    /** Always creates a clean group — description set via setter only */
+    _group(title) {
+        const g = new Adw.PreferencesGroup();
+        g.set_title(title);
+        return g;
     }
 
-    _spinRow(s, key, title, subtitle, min, max, step) {
-        const row = new Adw.SpinRow({
-            title,
-            adjustment: new Gtk.Adjustment({
-                lower: min, upper: max, step_increment: step, page_increment: step * 5,
-            }),
+    /** Integer spin row */
+    _spinRow(s, key, title, min, max, step) {
+        const adj = new Gtk.Adjustment({
+            lower:          min,
+            upper:          max,
+            step_increment: step,
+            page_increment: step * 5,
         });
-        if (subtitle) row.set_subtitle(subtitle);
-        row.set_value(
-            key.includes('opacity') || key.includes('double')
-                ? s.get_double(key)
-                : s.get_int(key)
-        );
-        row.connect('notify::value', () => {
-            key.includes('opacity')
-                ? s.set_double(key, row.get_value())
-                : s.set_int(key, row.get_value());
-        });
+        const row = new Adw.SpinRow();
+        row.set_title(title);
+        row.set_adjustment(adj);
+        row.set_value(s.get_int(key));
+        row.connect('notify::value', () => s.set_int(key, row.get_value()));
         return row;
     }
 
-    _scaleRow(s, key, title, subtitle, min, max, step) {
+    /** Double scale row (suffix widget) */
+    _scaleRow(s, key, title, min, max, step) {
+        const adj = new Gtk.Adjustment({
+            lower:          min,
+            upper:          max,
+            step_increment: step,
+        });
         const scale = new Gtk.Scale({
             orientation: Gtk.Orientation.HORIZONTAL,
-            adjustment:  new Gtk.Adjustment({ lower: min, upper: max, step_increment: step }),
+            adjustment:  adj,
             value_pos:   Gtk.PositionType.RIGHT,
-            digits:      2, hexpand: true,
+            digits:      2,
+            hexpand:     true,
             valign:      Gtk.Align.CENTER,
         });
         scale.set_value(s.get_double(key));
         scale.connect('value-changed', () => s.set_double(key, scale.get_value()));
-        const row = new Adw.ActionRow({ title });
-        if (subtitle) row.set_subtitle(subtitle);
+
+        const row = new Adw.ActionRow();
+        row.set_title(title);
         row.add_suffix(scale);
         return row;
     }
 
-    _switchRow(s, key, title, subtitle) {
-        const row = new Adw.SwitchRow({ title });
-        if (subtitle) row.set_subtitle(subtitle);
+    /** Boolean switch row */
+    _switchRow(s, key, title) {
+        const row = new Adw.SwitchRow();
+        row.set_title(title);
         row.set_active(s.get_boolean(key));
         row.connect('notify::active', () => s.set_boolean(key, row.get_active()));
         return row;
     }
 
-    _entryRow(s, key, title, subtitle) {
-        const row = new Adw.EntryRow({ title, show_apply_button: true });
+    /** String entry row with apply button */
+    _entryRow(s, key, title, placeholder) {
+        const row = new Adw.EntryRow();
+        row.set_title(title);
+        row.set_show_apply_button(true);
+        if (placeholder) row.set_input_hints(Gtk.InputHints.NO_SPELLCHECK);
         row.set_text(s.get_string(key) ?? '');
         row.connect('apply', () => s.set_string(key, row.get_text()));
         return row;
     }
 
-    _comboRow(s, key, title, subtitle, items) {
+    /** Combo / dropdown row */
+    _comboRow(s, key, title, items) {
         const model = new Gtk.StringList();
         items.forEach(i => model.append(i.label));
-        const row   = new Adw.ComboRow({ title, model });
-        if (subtitle) row.set_subtitle(subtitle);
-        const cur   = s.get_string(key);
-        const idx   = items.findIndex(i => i.value === cur);
+
+        const row = new Adw.ComboRow();
+        row.set_title(title);
+        row.set_model(model);
+
+        const cur = s.get_string(key);
+        const idx = items.findIndex(i => i.value === cur);
         row.set_selected(idx >= 0 ? idx : 0);
+
         row.connect('notify::selected', () => {
-            s.set_string(key, items[row.get_selected()]?.value ?? items[0].value);
+            const selected = items[row.get_selected()];
+            if (selected) s.set_string(key, selected.value);
         });
+
         return row;
     }
 }
