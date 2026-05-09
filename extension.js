@@ -88,8 +88,8 @@ export default class TahoeWidgetsExtension extends Extension {
             // ── 8. Onboarding: show hint if no widgets active ──────
             if (saved.length === 0) {
                 Main.notify(
-                    '🌊 Tahoe Widgets',
-                    'Klik 🌊 di top bar → "Add Widget" untuk menambahkan widget!'
+                    'Tahoe Widgets',
+                    'Click 🌊 on the top bar → "Add Widget" for adding new widgets!'
                 );
             }
 

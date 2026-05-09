@@ -83,6 +83,8 @@ export class LayoutManager {
         const entry = this._widgets.get(id);
         if (!entry) return;
         try {
+            // Disconnect stage listeners if this widget is mid-drag
+            entry.actor._tahoeStageDrag?.();
             entry.actor.remove_all_transitions();
             this.canvas.remove_child(entry.actor);
         } catch (e) {
@@ -112,50 +114,75 @@ export class LayoutManager {
     _connectDrag(id, actor) {
         actor.reactive = true;
 
-        let originX, originY, originActorX, originActorY, dragging = false;
+        let originX, originY, originActorX, originActorY;
+        let dragging = false;
+        let stageMotionId = 0, stageReleaseId = 0;
+
+        // Per-drag cache — populated once on press, not re-read every pixel
+        let _snap = false, _grid = 1, _safe = null;
+
+        const _cleanupStage = () => {
+            if (stageMotionId)  { global.stage.disconnect(stageMotionId);  stageMotionId  = 0; }
+            if (stageReleaseId) { global.stage.disconnect(stageReleaseId); stageReleaseId = 0; }
+        };
 
         const press = actor.connect('button-press-event', (_a, ev) => {
             if (ev.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+
             [originX, originY]           = ev.get_coords();
             [originActorX, originActorY] = [actor.x, actor.y];
             dragging = true;
             this._drag = { id };
+
+            // FIX #3 — cache GSettings reads + safe-area calc once per drag session
+            _snap = this._state.snapToGrid;
+            _grid = _snap ? this._state.gridSize : 1;
+            _safe = this._safeArea();
+
             actor.raise_top();
-            return Clutter.EVENT_STOP;
-        });
 
-        const motion = actor.connect('motion-event', (_a, ev) => {
-            if (!dragging || this._drag?.id !== id) return Clutter.EVENT_PROPAGATE;
-
-            const [ex, ey] = ev.get_coords();
-            let nx = originActorX + (ex - originX);
-            let ny = originActorY + (ey - originY);
-
-            if (this._state.snapToGrid) {
-                const g = this._state.gridSize;
-                nx = Math.round(nx / g) * g;
-                ny = Math.round(ny / g) * g;
-            }
-
-            const safe = this._safeArea();
-            nx = Math.max(safe.x, Math.min(nx, safe.x + safe.w - actor.width));
-            ny = Math.max(safe.y, Math.min(ny, safe.y + safe.h - actor.height));
-
-            actor.set_position(nx, ny);
+            // FIX #1 — apply CSS class once on press, not every motion event
             actor.add_style_class_name('tahoe-dragging');
+
+            // FIX #2 — listen on stage so fast mouse moves can't escape the actor
+            stageMotionId = global.stage.connect('motion-event', (_st, mev) => {
+                if (!dragging) return Clutter.EVENT_PROPAGATE;
+
+                const [ex, ey] = mev.get_coords();
+                let nx = originActorX + (ex - originX);
+                let ny = originActorY + (ey - originY);
+
+                if (_snap) {
+                    nx = Math.round(nx / _grid) * _grid;
+                    ny = Math.round(ny / _grid) * _grid;
+                }
+
+                nx = Math.max(_safe.x, Math.min(nx, _safe.x + _safe.w - actor.width));
+                ny = Math.max(_safe.y, Math.min(ny, _safe.y + _safe.h - actor.height));
+
+                actor.set_position(nx, ny);
+                return Clutter.EVENT_STOP;
+            });
+
+            stageReleaseId = global.stage.connect('button-release-event', (_st, rev) => {
+                if (rev.get_button() !== 1 || !dragging) return Clutter.EVENT_PROPAGATE;
+                dragging = false;
+                this._drag = null;
+
+                _cleanupStage();
+
+                actor.remove_style_class_name('tahoe-dragging');
+                this._state.setWidgetState(id, { x: actor.x, y: actor.y });
+                return Clutter.EVENT_STOP;
+            });
+
             return Clutter.EVENT_STOP;
         });
 
-        const release = actor.connect('button-release-event', () => {
-            if (!dragging || this._drag?.id !== id) return Clutter.EVENT_PROPAGATE;
-            dragging = false;
-            this._drag = null;
-            actor.remove_style_class_name('tahoe-dragging');
-            this._state.setWidgetState(id, { x: actor.x, y: actor.y });
-            return Clutter.EVENT_STOP;
-        });
-
-        actor._tahoeSignals = [press, motion, release];
+        // Expose cleanup so removeWidget can disconnect stage listeners if drag
+        // is in progress when the widget is destroyed externally.
+        actor._tahoeSignals    = [press];
+        actor._tahoeStageDrag  = _cleanupStage;
     }
 
     /* ══ Auto-placement ═══════════════════════════════════════════════ */
