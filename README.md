@@ -1,4 +1,4 @@
-# 🌊 Tahoe Widgets
+# Tahoe Widgets
 
 > macOS Tahoe-inspired glassmorphism desktop widgets for GNOME Shell on Fedora.
 
@@ -12,12 +12,12 @@
 
 | Widget | Description | Refresh |
 |--------|-------------|---------|
-| 🕐 **Clock** | Digital time + date, 12h/24h | 1 s |
-| 🌤️ **Weather** | Temp, description, 5-hour forecast (Open-Meteo) | 10 min |
-| 📅 **Calendar** | Current-month mini calendar, today highlighted | midnight |
-| 🌍 **World Clock** | Time for multiple timezones with UTC offset | 1 min |
-| 🔋 **Battery** | System battery + connected Bluetooth devices | 30 s |
-| 📊 **Quick Status** | Wi-Fi SSID, Bluetooth, CPU %, RAM % | 5 s |
+| **Clock** | Digital time + date, 12h/24h | 1 s |
+| **Weather** | Temp, description, 5-hour forecast (Open-Meteo) | 10 min |
+| **Calendar** | Current-month mini calendar, today highlighted | midnight |
+| **World Clock** | Time for multiple timezones with UTC offset | 1 min |
+| **Battery** | System battery + connected Bluetooth devices | 30 s |
+| **Quick Status** | Wi-Fi SSID, Bluetooth, CPU %, RAM % | 5 s |
 
 All widgets support **drag-and-drop**, **grid snapping**, and **position persistence**.
 
@@ -46,7 +46,7 @@ chmod +x dev.sh
 
 ---
 
-## ⚙️ Settings
+## Settings
 
 Open **GNOME Extensions** app → Tahoe Widgets → ⚙️, or:
 
@@ -58,7 +58,7 @@ gnome-extensions prefs tahoe-widgets@gnome
 
 ---
 
-# 📖 Step-by-Step Development Guide
+# Development Guide
 
 This section explains **incremental development** — from zero to full extension.
 Each step has a goal, minimal working code, expected output, and verification method.
@@ -450,7 +450,7 @@ tahoe-widgets@gnome/
 
 ---
 
-## License
+## License2.1
 
 GNU General Public License v2.0 or later.  
 See [LICENSE](LICENSE) for full text.
