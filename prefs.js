@@ -203,7 +203,7 @@ export default class TahoePreferences extends ExtensionPreferences {
 
         const ver = new Adw.ActionRow();
         ver.set_title('Version');
-        ver.set_subtitle('2.1.0 — GNOME 45–50');
+        ver.set_subtitle('2.1.1 — GNOME 45–50');
         ag.add(ver);
 
         const src = new Adw.ActionRow();

@@ -45,7 +45,7 @@ export default class TahoeWidgetsExtension extends Extension {
     enable() {
         this._log     = new Logger('Extension');
         this._syncing = false;   // re-entrancy guard
-        this._log.info('Enabling Tahoe Widgets v2.1');
+        this._log.info('Enabling Tahoe Widgets v2.1.1');
 
         try {
             // ── 1. Core singletons ─────────────────────────────────
@@ -93,7 +93,7 @@ export default class TahoeWidgetsExtension extends Extension {
                 );
             }
 
-            this._log.info('Tahoe Widgets v2.1 enabled successfully');
+            this._log.info('Tahoe Widgets v2.1.1 enabled successfully');
 
         } catch (e) {
             this._log.error('Enable FAILED:', e.message, e.stack ?? '');
