@@ -1,10 +1,5 @@
 /**
  * DataManager — central hub for all external data.
- *
- * - Caches responses so multiple widgets share one fetch
- * - Implements exponential back-off on failures
- * - Notifies subscribers when fresh data arrives
- * - Cleans up all timers on destroy()
  */
 
 import Soup   from 'gi://Soup';
@@ -32,39 +27,26 @@ export class DataManager {
         this._log       = new Logger('Data');
         this._session   = new Soup.Session();
         this._session.timeout = 15;
+        this._cache     = new Map();
+        this._timers    = new Map();
+        this._listeners = new Map();
+        this._backoff   = new Map();
 
-        this._cache     = new Map();  // key → { data, ts }
-        this._timers    = new Map();  // key → GLib source id
-        this._listeners = new Map();  // key → Set<fn>
-        this._backoff   = new Map();  // key → retry count
-
-        // Start weather poller if location is configured
         this._startWeatherPoller();
 
-        // Re-start poller when relevant settings change
         this._unsubWeather = state.subscribe('settings:weather-refresh-minutes',
             () => this._startWeatherPoller());
         this._unsubLoc = state.subscribe('settings:weather-location',
             () => { this._cache.delete('weather'); this._startWeatherPoller(); });
     }
 
-    /* ══ Weather ══════════════════════════════════════════════════════ */
-
-    /**
-     * Get cached weather data (may be null if not yet fetched).
-     * Triggers a fresh fetch if cache is stale.
-     */
-    getWeather() {
-        return this._cache.get('weather')?.data ?? null;
-    }
-
+    getWeather() { return this._cache.get('weather')?.data ?? null; }
     onWeather(fn) { return this._subscribe('weather', fn); }
 
     async fetchWeatherNow() {
         try {
             const loc  = this._state.weatherLocation?.trim();
             const unit = this._state.weatherUnit;
-
             let coords;
             if (!loc) {
                 coords = await this._geolocate();
@@ -73,9 +55,7 @@ export class DataManager {
                     ? this._parseCoordsString(loc)
                     : await this._geocodeCity(loc);
             }
-
             if (!coords) throw new Error('Cannot determine location');
-
             const data = await this._fetchWeatherCoords(coords, unit);
             this._cache.set('weather', { data, ts: Date.now() });
             this._backoff.set('weather', 0);
@@ -90,26 +70,18 @@ export class DataManager {
         }
     }
 
-    /* ══ Private: weather internals ═══════════════════════════════════ */
-
     _startWeatherPoller() {
         this._stopPoller('weather');
         const minutes = this._state.weatherRefresh ?? 15;
         const ms      = Math.max(5, minutes) * 60_000;
-
-        // Immediate fetch
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this.fetchWeatherNow().catch(() => {});
             return GLib.SOURCE_REMOVE;
         });
-
-        this._timers.set('weather', GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT, ms,
-            () => {
-                this.fetchWeatherNow().catch(() => {});
-                return GLib.SOURCE_CONTINUE;
-            }
-        ));
+        this._timers.set('weather', GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+            this.fetchWeatherNow().catch(() => {});
+            return GLib.SOURCE_CONTINUE;
+        }));
     }
 
     _stopPoller(key) {
@@ -118,24 +90,16 @@ export class DataManager {
     }
 
     async _geolocate() {
-        // Try Geoclue if available
         try {
             const { default: Geoclue } = await import('gi://Geoclue');
-            const client = await Geoclue.Simple.new(
-                'tahoe-widgets', Geoclue.AccuracyLevel.CITY, null
-            );
+            const client = await Geoclue.Simple.new('tahoe-widgets', Geoclue.AccuracyLevel.CITY, null);
             const loc = client.get_location();
-            return {
-                lat:  loc.get_latitude(),
-                lon:  loc.get_longitude(),
-                name: 'Current Location',
-            };
+            return { lat: loc.get_latitude(), lon: loc.get_longitude(), name: 'Current Location' };
         } catch {
-            this._log.warn('Geoclue unavailable, falling back to IP geolocation');
+            this._log.warn('Geoclue unavailable, falling back to IP');
         }
-        // Fallback: ip-api.com (no key, ~1000 req/day free)
         try {
-            const raw  = await this._get('http://ip-api.com/json/?fields=lat,lon,city');
+            const raw = await this._get('http://ip-api.com/json/?fields=lat,lon,city');
             return { lat: raw.lat, lon: raw.lon, name: raw.city ?? 'Auto' };
         } catch {
             throw new Error('Auto-location failed. Set a city in Settings.');
@@ -159,16 +123,11 @@ export class DataManager {
     async _fetchWeatherCoords({ lat, lon, name }, unit) {
         const tUnit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
         const sym   = unit === 'fahrenheit' ? '°F' : '°C';
-        const url   = `${WEATHER_BASE}`
-            + `?latitude=${lat}&longitude=${lon}`
+        const url   = `${WEATHER_BASE}?latitude=${lat}&longitude=${lon}`
             + `&current=temperature_2m,weathercode,windspeed_10m,relativehumidity_2m`
             + `&hourly=temperature_2m,weathercode`
             + `&daily=temperature_2m_max,temperature_2m_min,weathercode`
-            + `&temperature_unit=${tUnit}`
-            + `&wind_speed_unit=kmh`
-            + `&forecast_days=3`
-            + `&timezone=auto`;
-
+            + `&temperature_unit=${tUnit}&wind_speed_unit=kmh&forecast_days=3&timezone=auto`;
         const raw = await this._get(url);
         return this._normaliseWeather(raw, name, sym);
     }
@@ -178,58 +137,40 @@ export class DataManager {
         const d   = raw.daily;
         const h   = raw.hourly;
         const wmo = WMO[c.weathercode] ?? ['🌡️', 'Unknown'];
-
         const now     = new Date();
         const curHour = now.getHours();
-
         const forecast = [];
         for (let i = 1; i <= 6; i++) {
             const idx = curHour + i;
             if (idx >= h.time.length) break;
             const fw = WMO[h.weathercode[idx]] ?? ['🌡️', ''];
-            forecast.push({
-                time: h.time[idx].slice(11, 16),
-                icon: fw[0],
-                temp: `${Math.round(h.temperature_2m[idx])}${sym}`,
-            });
+            forecast.push({ time: h.time[idx].slice(11, 16), icon: fw[0],
+                temp: `${Math.round(h.temperature_2m[idx])}${sym}` });
         }
-
         return {
-            location:    locationName,
-            temperature: Math.round(c.temperature_2m),
-            unit:        sym,
-            description: wmo[1],
-            icon:        wmo[0],
-            high:        `${Math.round(d.temperature_2m_max[0])}${sym}`,
-            low:         `${Math.round(d.temperature_2m_min[0])}${sym}`,
-            humidity:    `${c.relativehumidity_2m}%`,
-            wind:        `${Math.round(c.windspeed_10m)} km/h`,
-            forecast,
-            fetchedAt:   Date.now(),
+            location: locationName, temperature: Math.round(c.temperature_2m),
+            unit: sym, description: wmo[1], icon: wmo[0],
+            high: `${Math.round(d.temperature_2m_max[0])}${sym}`,
+            low:  `${Math.round(d.temperature_2m_min[0])}${sym}`,
+            humidity: `${c.relativehumidity_2m}%`,
+            wind: `${Math.round(c.windspeed_10m)} km/h`,
+            forecast, fetchedAt: Date.now(),
         };
     }
-
-    /* ══ HTTP ═════════════════════════════════════════════════════════ */
 
     _get(url) {
         return new Promise((resolve, reject) => {
             try {
                 const msg = Soup.Message.new('GET', url);
-                this._session.send_and_read_async(
-                    msg, GLib.PRIORITY_DEFAULT, null,
-                    (sess, res) => {
-                        try {
-                            const bytes = sess.send_and_read_finish(res);
-                            const text  = new TextDecoder().decode(bytes.get_data());
-                            resolve(JSON.parse(text));
-                        } catch (e) { reject(e); }
-                    }
-                );
+                this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null, (sess, res) => {
+                    try {
+                        const bytes = sess.send_and_read_finish(res);
+                        resolve(JSON.parse(new TextDecoder().decode(bytes.get_data())));
+                    } catch (e) { reject(e); }
+                });
             } catch (e) { reject(e); }
         });
     }
-
-    /* ══ Pub/sub ══════════════════════════════════════════════════════ */
 
     _subscribe(key, fn) {
         if (!this._listeners.has(key)) this._listeners.set(key, new Set());
@@ -241,10 +182,8 @@ export class DataManager {
         this._listeners.get(key)?.forEach(fn => { try { fn(data); } catch {} });
     }
 
-    /* ══ Lifecycle ════════════════════════════════════════════════════ */
-
     destroy() {
-        this._timers.forEach((id) => GLib.source_remove(id));
+        this._timers.forEach(id => GLib.source_remove(id));
         this._timers.clear();
         this._unsubWeather?.();
         this._unsubLoc?.();

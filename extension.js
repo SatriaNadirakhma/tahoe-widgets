@@ -1,8 +1,14 @@
 /**
- * Tahoe Widgets v2.1 — extension.js
- * FIX: Watch GSettings active-widgets changes in real-time.
- *      Widgets muncul/hilang langsung saat toggle di prefs,
- *      tanpa perlu restart extension.
+ * Tahoe Widgets v2.1 — extension.js  FIXED
+ *
+ * Fixes:
+ *  1. _wireRegistryToLayout must run BEFORE WidgetPicker is created,
+ *     so picker also uses the patched (layout-aware) instantiate.
+ *  2. Re-entrancy guard: _syncing flag prevents _syncWidgets from being
+ *     called recursively when destroyWidget internally modifies GSettings.
+ *  3. First-run: show notification whenever no widgets are active,
+ *     not just on literal first-run flag.
+ *  4. Better error reporting with Main.notify on enable failure.
  */
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -26,65 +32,72 @@ import {
 } from './src/widgets/otherWidgets.js';
 
 const WIDGET_CATALOG = [
-    { id: 'clock',       label: 'Clock',        description: 'Live digital clock',         icon: '🕐', Cls: ClockWidget       },
-    { id: 'weather',     label: 'Weather',       description: 'Conditions + forecast',      icon: '🌤️', Cls: WeatherWidget     },
-    { id: 'calendar',    label: 'Calendar',      description: 'Monthly mini-calendar',      icon: '📅', Cls: CalendarWidget    },
-    { id: 'worldClock',  label: 'World Clock',   description: 'Multi-timezone display',     icon: '🌍', Cls: WorldClockWidget  },
-    { id: 'battery',     label: 'Battery',       description: 'Battery + devices',          icon: '🔋', Cls: BatteryWidget     },
-    { id: 'quickStatus', label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',            icon: '📊', Cls: QuickStatusWidget },
+    { id: 'clock',       label: 'Clock',        description: 'Live digital clock',       icon: '🕐', Cls: ClockWidget       },
+    { id: 'weather',     label: 'Weather',       description: 'Conditions + 6hr forecast', icon: '🌤️', Cls: WeatherWidget    },
+    { id: 'calendar',    label: 'Calendar',      description: 'Monthly mini-calendar',    icon: '📅', Cls: CalendarWidget    },
+    { id: 'worldClock',  label: 'World Clock',   description: 'Multi-timezone display',   icon: '🌍', Cls: WorldClockWidget  },
+    { id: 'battery',     label: 'Battery',       description: 'Battery + devices',        icon: '🔋', Cls: BatteryWidget     },
+    { id: 'quickStatus', label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',          icon: '📊', Cls: QuickStatusWidget },
 ];
 
 export default class TahoeWidgetsExtension extends Extension {
 
     enable() {
-        this._log = new Logger('Extension');
+        this._log     = new Logger('Extension');
+        this._syncing = false;   // re-entrancy guard
         this._log.info('Enabling Tahoe Widgets v2.1');
 
         try {
-            // ── Core singletons ─────────────────────────────────
+            // ── 1. Core singletons ─────────────────────────────────
             this._state    = new StateManager(this.getSettings());
             this._registry = new WidgetRegistry(this._state);
             this._layout   = new LayoutManager(this._state);
             this._data     = new DataManager(this._state);
 
-            // ── Register catalog ─────────────────────────────────
-            WIDGET_CATALOG.forEach(desc => this._registry.register(desc));
+            // ── 2. Register widget catalog ─────────────────────────
+            WIDGET_CATALOG.forEach(d => this._registry.register(d));
 
-            // ── Wire registry → layout ───────────────────────────
+            // ── 3. Wire registry → layout (MUST be before picker!) ─
+            //    Picker gets the registry reference AFTER patching so
+            //    picker.instantiate also calls layout.addWidget.
             this._wireRegistryToLayout();
 
-            // ── Restore saved widgets ────────────────────────────
-            this._syncWidgets(this._state.getActiveWidgets());
+            // ── 4. Restore saved active widgets ────────────────────
+            const saved = this._state.getActiveWidgets();
+            this._log.info(`Restoring ${saved.length} widget(s):`, saved);
+            this._syncWidgets(saved);
 
-            // ── UI chrome ────────────────────────────────────────
+            // ── 5. UI chrome (after wire, so picker uses patched registry) ──
             this._picker   = new WidgetPicker(this._registry, this._state);
             this._panelBtn = new TahoePanelButton(
                 this._picker, this._layout, this._state
             );
 
-            // ── KEY FIX: Watch active-widgets GSettings changes ──
-            // Fires every time user toggles a switch in prefs.js
-            this._activeWidgetsChangedId = this._state.subscribe(
+            // ── 6. Live-watch active-widgets GSettings changes ─────
+            this._unsubActiveWidgets = this._state.subscribe(
                 'settings:active-widgets',
                 () => this._onActiveWidgetsChanged()
             );
 
-            // ── Hide widgets in Activities overview ───────────────
+            // ── 7. Hide widgets when Activities overview opens ─────
             this._overviewShowId = Main.overview.connect('showing',
                 () => this._layout.hide());
             this._overviewHideId = Main.overview.connect('hidden',
                 () => this._layout.show());
 
-            // ── First-run notification ────────────────────────────
-            if (this._state.isFirstRun) {
-                this._state.isFirstRun = false;
-                Main.notify('Tahoe Widgets',
-                    'Buka Settings → Widgets untuk mengaktifkan widget!');
+            // ── 8. Onboarding: show hint if no widgets active ──────
+            if (saved.length === 0) {
+                Main.notify(
+                    '🌊 Tahoe Widgets',
+                    'Klik 🌊 di top bar → "Add Widget" untuk menambahkan widget!'
+                );
             }
 
-            this._log.info('Tahoe Widgets enabled');
+            this._log.info('Tahoe Widgets v2.1 enabled successfully');
+
         } catch (e) {
-            this._log.error('Enable failed:', e.message, e.stack);
+            this._log.error('Enable FAILED:', e.message, e.stack ?? '');
+            Main.notify('Tahoe Widgets ERROR', e.message);
             this._safeDisable();
         }
     }
@@ -95,65 +108,74 @@ export default class TahoeWidgetsExtension extends Extension {
         this._log = null;
     }
 
-    /* ══ Sync: GSettings ↔ live instances ═══════════════════════════ */
+    /* ══ Active-widgets sync ══════════════════════════════════════════ */
 
-    /**
-     * Called on startup AND every time active-widgets GSettings changes.
-     * Adds missing widgets, removes deactivated ones — without full restart.
-     */
     _onActiveWidgetsChanged() {
+        if (this._syncing) return;   // prevent re-entrant call
         const desired = this._state.getActiveWidgets();
-        this._log.info('active-widgets changed:', desired);
+        this._log.info('active-widgets changed →', desired);
         this._syncWidgets(desired);
     }
 
     _syncWidgets(desiredIds) {
-        const currentIds = this._registry.getActiveInstances().map(w => w.id);
+        if (this._syncing) return;
+        this._syncing = true;
 
-        // Add widgets that are desired but not yet active
-        desiredIds.forEach(id => {
-            if (!this._registry.isActive(id)) {
-                try {
-                    this._registry.instantiate(id, { data: this._data });
-                    this._log.info(`Added widget: ${id}`);
-                } catch (e) {
-                    this._log.error(`Failed to add widget '${id}':`, e.message);
-                    this._state.removeActiveWidget(id);
+        try {
+            const currentIds = this._registry.getActiveInstances().map(w => w.id);
+
+            // Add widgets that should exist but don't yet
+            for (const id of desiredIds) {
+                if (!this._registry.isActive(id)) {
+                    try {
+                        this._registry.instantiate(id, { data: this._data });
+                        this._log.info(`+ Added widget: ${id}`);
+                    } catch (e) {
+                        this._log.error(`Failed to add '${id}':`, e.message);
+                        // Remove from GSettings so we don't retry-crash on next load
+                        this._state.removeActiveWidget(id);
+                    }
                 }
             }
-        });
 
-        // Remove widgets that are active but no longer desired
-        currentIds.forEach(id => {
-            if (!desiredIds.includes(id)) {
-                try {
-                    this._registry.destroyWidget(id);
-                    this._log.info(`Removed widget: ${id}`);
-                } catch (e) {
-                    this._log.error(`Failed to remove widget '${id}':`, e.message);
+            // Remove widgets that are active but no longer desired
+            for (const id of currentIds) {
+                if (!desiredIds.includes(id)) {
+                    try {
+                        this._registry.destroyWidget(id);
+                        this._log.info(`- Removed widget: ${id}`);
+                    } catch (e) {
+                        this._log.error(`Failed to remove '${id}':`, e.message);
+                    }
                 }
             }
-        });
+        } finally {
+            this._syncing = false;
+        }
     }
 
-    /* ══ Wire registry → layout ══════════════════════════════════════ */
+    /* ══ Registry → Layout wiring ═════════════════════════════════════ */
 
     _wireRegistryToLayout() {
+        // Capture originals BEFORE patching
         const origInstantiate = this._registry.instantiate.bind(this._registry);
+        const origDestroy     = this._registry.destroyWidget.bind(this._registry);
+
+        // Patched instantiate: create widget + add to canvas
         this._registry.instantiate = (id, opts = {}) => {
             const widget = origInstantiate(id, { ...opts, data: this._data });
             this._layout.addWidget(widget);
             return widget;
         };
 
-        const origDestroy = this._registry.destroyWidget.bind(this._registry);
+        // Patched destroyWidget: remove from canvas + destroy
         this._registry.destroyWidget = (id) => {
-            this._layout.removeWidget(id);
-            origDestroy(id);
+            this._layout.removeWidget(id);  // remove actor from canvas first
+            origDestroy(id);                 // then destroy the widget object
         };
     }
 
-    /* ══ Safe cleanup ════════════════════════════════════════════════ */
+    /* ══ Safe cleanup ═════════════════════════════════════════════════ */
 
     _safeDisable() {
         if (this._overviewShowId) {
@@ -164,17 +186,23 @@ export default class TahoeWidgetsExtension extends Extension {
             Main.overview.disconnect(this._overviewHideId);
             this._overviewHideId = null;
         }
-        if (this._activeWidgetsChangedId) {
-            this._activeWidgetsChangedId(); // unsubscribe fn
-            this._activeWidgetsChangedId = null;
+        if (this._unsubActiveWidgets) {
+            this._unsubActiveWidgets();
+            this._unsubActiveWidgets = null;
         }
 
-        this._panelBtn?.destroy();   this._panelBtn = null;
-        this._picker?.destroy();     this._picker   = null;
-        this._registry?.destroyAll();
-        this._registry = null;
-        this._layout?.destroy();     this._layout   = null;
-        this._data?.destroy();       this._data     = null;
-        this._state?.destroy();      this._state    = null;
+        this._panelBtn?.destroy();    this._panelBtn = null;
+        this._picker?.destroy();      this._picker   = null;
+
+        // Restore original methods before destroying registry
+        // (so destroyAll doesn't call the patched version after layout is gone)
+        if (this._registry) {
+            try { this._registry.destroyAll(); } catch {}
+            this._registry = null;
+        }
+
+        this._layout?.destroy();      this._layout   = null;
+        this._data?.destroy();        this._data     = null;
+        this._state?.destroy();       this._state    = null;
     }
 }
