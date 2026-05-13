@@ -204,7 +204,7 @@ export class LayoutManager {
             const safe = this._safeArea();
             const w    = actor.get_preferred_width(-1)[1]  || actor.width  || 240;
             const h    = actor.get_preferred_height(-1)[1] || actor.height || 120;
-            const x    = safe.x + safe.w - w - margin;
+            const x    = safe.x + margin;
             let   y    = usedBottom;
 
             // Wrap to top if overflows
