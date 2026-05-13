@@ -46,6 +46,28 @@ chmod +x dev.sh
 
 ---
 
+## Updating
+
+When the developer publishes an update to the repository, follow these steps to upgrade your local installation:
+
+```bash
+# 1. Pull the latest changes
+cd tahoe-widgets
+git pull
+
+# 2. Re-install the extension (rsyncs new files + recompiles schemas)
+./dev.sh install
+
+# 3. Reload the extension to apply the update
+./dev.sh reload
+# Or, if you are on Wayland:
+# Log out and back in
+```
+
+> **Note:** The `./dev.sh install` command uses `rsync -a --delete`, which ensures old files are removed and new ones are copied in place. Your widget positions and settings (stored in GSettings) are preserved across updates.
+
+---
+
 ## Settings
 
 Open **GNOME Extensions** app → Tahoe Widgets → ⚙️, or:

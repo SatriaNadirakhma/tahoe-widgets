@@ -83,6 +83,11 @@ export class LayoutManager {
         const entry = this._widgets.get(id);
         if (!entry) return;
         try {
+            // Cancel any pending auto-place before removing
+            if (entry.actor._tahoeAutoPlace) {
+                GLib.source_remove(entry.actor._tahoeAutoPlace);
+                entry.actor._tahoeAutoPlace = 0;
+            }
             // Disconnect stage listeners if this widget is mid-drag
             entry.actor._tahoeStageDrag?.();
             entry.actor.remove_all_transitions();
@@ -128,6 +133,13 @@ export class LayoutManager {
 
         const press = actor.connect('button-press-event', (_a, ev) => {
             if (ev.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+
+            // Cancel any pending auto-place so it doesn't jump the widget
+            // mid-drag (auto-place runs asynchronously via GLib.idle_add).
+            if (actor._tahoeAutoPlace) {
+                GLib.source_remove(actor._tahoeAutoPlace);
+                actor._tahoeAutoPlace = 0;
+            }
 
             [originX, originY]           = ev.get_coords();
             [originActorX, originActorY] = [actor.x, actor.y];
@@ -199,8 +211,14 @@ export class LayoutManager {
             if (bottom > usedBottom) usedBottom = bottom;
         });
 
-        // Wait one frame for natural size allocation
-        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+        // Set an initial approximate position immediately so the actor
+        // has valid coordinates if the user starts dragging before the
+        // idle callback fires (which waits for size allocation).
+        const safe = this._safeArea();
+        actor.set_position(safe.x + margin, usedBottom);
+
+        // Wait one frame for natural size allocation, then place precisely.
+        actor._tahoeAutoPlace = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             const safe = this._safeArea();
             const w    = actor.get_preferred_width(-1)[1]  || actor.width  || 240;
             const h    = actor.get_preferred_height(-1)[1] || actor.height || 120;
@@ -214,6 +232,7 @@ export class LayoutManager {
             actor.set_position(x, y);
             this._state.setWidgetState(id, { x, y });
             this._log.debug(`Auto-placed ${id}: x=${x} y=${y} w=${w} h=${h}`);
+            actor._tahoeAutoPlace = 0;
             return GLib.SOURCE_REMOVE;
         });
     }
