@@ -85,12 +85,15 @@ export default class TahoeWidgetsExtension extends Extension {
             this._overviewHideId = Main.overview.connect('hidden',
                 () => this._layout.show());
 
-            // ── 8. Onboarding: show hint if no widgets active ──────
-            if (saved.length === 0) {
+            // ── 8. Onboarding: show hint ONCE on genuine first run ───
+            //    isFirstRun guards against re-showing after suspend/resume
+            //    or any other disable→enable cycle (e.g. GNOME Shell restart).
+            if (saved.length === 0 && this._state.isFirstRun) {
                 Main.notify(
                     'Tahoe Widgets',
                     'Click 🌊 on the top bar → "Add Widget" for adding new widgets!'
                 );
+                this._state.isFirstRun = false;   // never show again
             }
 
             this._log.info('Tahoe Widgets v2.1.1 enabled successfully');

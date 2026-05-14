@@ -39,9 +39,10 @@ git clone https://github.com/yourname/tahoe-widgets
 cd tahoe-widgets
 chmod +x dev.sh
 ./dev.sh install
-./dev.sh enable
+
 # Wayland: log out and back in
 # X11:     ./dev.sh restart
+./dev.sh enable
 ```
 
 ---

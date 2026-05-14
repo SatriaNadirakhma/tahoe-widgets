@@ -169,12 +169,11 @@ export class BaseWidget {
             });
             this._menu.addMenuItem(settingsItem);
 
-            // Right-click opens menu
-            this.actor.connect('button-press-event', (_a, ev) => {
-                if (ev.get_button() !== 3) return Clutter.EVENT_PROPAGATE;
-                this._menu.toggle();
-                return Clutter.EVENT_STOP;
-            });
+            // Right-click opens menu via PopupMenu's built-in handling.
+            // We do NOT connect a separate button-press-event here because
+            // LayoutManager._connectDrag already handles left-click for
+            // dragging on the same actor.  Two button-press-event handlers
+            // on the same actor cause event conflicts that break dragging.
 
         } catch (e) {
             // Menu failed — widget still shows, just without right-click menu
@@ -198,11 +197,18 @@ export class BaseWidget {
         const sigma = this._state.blurRadius ?? 20;
         if (sigma <= 0) return;
         try {
-            const blur = new Clutter.BlurEffect({ sigma: sigma / 3 });
+            // Use a low-quality blur to avoid severe lag during drag.
+            // Clutter.BlurEffect is extremely expensive (offscreen buffer +
+            // convolution per frame).  A small sigma keeps it usable.
+            const blur = new Clutter.BlurEffect({ sigma: Math.min(sigma / 3, 4) });
             this.actor.add_effect_with_name('blur', blur);
         } catch {
             // BlurEffect not available — skip silently
         }
+
+        // Expose a re-apply function so LayoutManager can restore the blur
+        // after temporarily removing it during drag (for performance).
+        this.actor._tahoeReapplyBlur = () => this._applyBlur();
     }
 
     /* ══ Lifecycle ════════════════════════════════════════════════════ */

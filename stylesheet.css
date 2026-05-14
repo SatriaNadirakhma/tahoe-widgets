@@ -8,29 +8,21 @@
 /* ── Base widget panel ────────────────────────────────────────────── */
 
 .tahoe-widget {
-    background-color: rgba(255, 255, 255, 0.14);
-    border:           1px solid rgba(255, 255, 255, 0.26);
+    background-color: rgba(255, 255, 255, 0.10);
+    border:           1px solid rgba(255, 255, 255, 0.20);
     border-radius:    20px;
     padding:          18px 20px;
-    box-shadow:       0 8px 32px rgba(0, 0, 0, 0.30),
-                      0 1px 0   rgba(255, 255, 255, 0.10) inset;
     min-width:        160px;
 }
 
-/* Hover */
-.tahoe-widget.tahoe-widget-hover {
-    background-color: rgba(255, 255, 255, 0.20);
-    border-color:     rgba(255, 255, 255, 0.36);
-    box-shadow:       0 12px 40px rgba(0, 0, 0, 0.36),
-                      0 1px 0    rgba(255, 255, 255, 0.16) inset;
-    transition-duration: 150ms;
-}
+/* Hover effect intentionally removed — widgets do not need visual
+   feedback on cursor enter/leave. The effect caused lag when moving
+   the cursor between widgets due to Clutter implicit animations. */
 
-/* Drag */
+/* Drag — identical to base, no visual change on drag start/end.
+   Avoids any Clutter animation that would cause lag between widgets. */
 .tahoe-widget.tahoe-dragging {
-    background-color: rgba(255, 255, 255, 0.24);
-    box-shadow:       0 20px 56px rgba(0, 0, 0, 0.44);
-    opacity:          0.90;
+    transition-duration: 0ms;
 }
 
 /* Edit mode outline */
@@ -45,7 +37,6 @@
     background-color: rgba(255, 255, 255, 0.30);
     border-radius:    2px;
     margin-bottom:    8px;
-    transition-duration: 150ms;
 }
 
 /* ── Typography ───────────────────────────────────────────────────── */

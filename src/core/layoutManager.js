@@ -121,46 +121,76 @@ export class LayoutManager {
 
         let originX, originY, originActorX, originActorY;
         let dragging = false;
-        let stageMotionId = 0, stageReleaseId = 0;
 
         // Per-drag cache — populated once on press, not re-read every pixel
         let _snap = false, _grid = 1, _safe = null;
 
-        const _cleanupStage = () => {
-            if (stageMotionId)  { global.stage.disconnect(stageMotionId);  stageMotionId  = 0; }
-            if (stageReleaseId) { global.stage.disconnect(stageReleaseId); stageReleaseId = 0; }
-        };
+        // ROOT CAUSE FIX:
+        //
+        // The previous implementation used:
+        //   captured-event → stop BUTTON_PRESS → start drag
+        //   stage.connect('motion-event')  → move widget
+        //   stage.connect('button-release-event') → end drag
+        //
+        // Problem: when captured-event returns EVENT_STOP on the button press,
+        // Clutter never delivers the press to any actor, so no implicit pointer
+        // grab is established.  In GNOME 45+ without that grab, the stage-level
+        // 'motion-event' and 'button-release-event' signals are NOT reliably
+        // delivered while the pointer moves — causing the widget to appear frozen.
+        //
+        // Fix: Handle ALL three event types (BUTTON_PRESS, MOTION,
+        // BUTTON_RELEASE) inside the single 'captured-event' handler.
+        // captured-event fires for every event unconditionally (it is the
+        // capture phase of the Clutter event pipeline), so no grab is needed.
 
-        const press = actor.connect('button-press-event', (_a, ev) => {
-            if (ev.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+        const capturedId = global.stage.connect('captured-event', (_st, ev) => {
+            const evType = ev.type();
 
-            // Cancel any pending auto-place so it doesn't jump the widget
-            // mid-drag (auto-place runs asynchronously via GLib.idle_add).
-            if (actor._tahoeAutoPlace) {
-                GLib.source_remove(actor._tahoeAutoPlace);
-                actor._tahoeAutoPlace = 0;
+            /* ── BUTTON PRESS: start drag if pointer is over our actor ── */
+            if (evType === Clutter.EventType.BUTTON_PRESS) {
+                if (ev.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+
+                const [ex, ey] = ev.get_coords();
+                const clicked  = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, ex, ey);
+                if (!clicked || !actor.contains(clicked)) return Clutter.EVENT_PROPAGATE;
+
+                // Cancel any pending auto-place so it doesn't jump the widget
+                // mid-drag (auto-place runs asynchronously via GLib.idle_add).
+                if (actor._tahoeAutoPlace) {
+                    GLib.source_remove(actor._tahoeAutoPlace);
+                    actor._tahoeAutoPlace = 0;
+                }
+
+                [originX, originY]           = ev.get_coords();
+                [originActorX, originActorY] = [actor.x, actor.y];
+                dragging = true;
+                this._drag = { id };
+
+                // Cache GSettings reads + safe-area calc once per drag session
+                _snap = this._state.snapToGrid;
+                _grid = _snap ? this._state.gridSize : 1;
+                _safe = this._safeArea();
+
+                // raise_top() removed in GNOME 45+ — use parent container API
+                actor.get_parent()?.set_child_above_sibling(actor, null);
+
+                // Kill all running transitions BEFORE adding the class so the
+                // CSS state change is instant — no fade/scale delay on drag start.
+                actor.remove_all_transitions();
+                actor.add_style_class_name('tahoe-dragging');
+
+                // Remove blur effect during drag to prevent lag
+                const _blurEffect = actor.get_effect('blur');
+                if (_blurEffect) actor.remove_effect(_blurEffect);
+
+                return Clutter.EVENT_STOP;
             }
 
-            [originX, originY]           = ev.get_coords();
-            [originActorX, originActorY] = [actor.x, actor.y];
-            dragging = true;
-            this._drag = { id };
-
-            // FIX #3 — cache GSettings reads + safe-area calc once per drag session
-            _snap = this._state.snapToGrid;
-            _grid = _snap ? this._state.gridSize : 1;
-            _safe = this._safeArea();
-
-            actor.raise_top();
-
-            // FIX #1 — apply CSS class once on press, not every motion event
-            actor.add_style_class_name('tahoe-dragging');
-
-            // FIX #2 — listen on stage so fast mouse moves can't escape the actor
-            stageMotionId = global.stage.connect('motion-event', (_st, mev) => {
+            /* ── MOTION: move widget while dragging ──────────────────── */
+            if (evType === Clutter.EventType.MOTION) {
                 if (!dragging) return Clutter.EVENT_PROPAGATE;
 
-                const [ex, ey] = mev.get_coords();
+                const [ex, ey] = ev.get_coords();
                 let nx = originActorX + (ex - originX);
                 let ny = originActorY + (ey - originY);
 
@@ -174,27 +204,40 @@ export class LayoutManager {
 
                 actor.set_position(nx, ny);
                 return Clutter.EVENT_STOP;
-            });
+            }
 
-            stageReleaseId = global.stage.connect('button-release-event', (_st, rev) => {
-                if (rev.get_button() !== 1 || !dragging) return Clutter.EVENT_PROPAGATE;
-                dragging = false;
-                this._drag = null;
+            /* ── BUTTON RELEASE: end drag, persist position ──────────── */
+            if (evType === Clutter.EventType.BUTTON_RELEASE) {
+                if (!dragging || ev.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
 
-                _cleanupStage();
+                dragging       = false;
+                this._drag     = null;
 
+                // Kill transitions so class removal is instant — no ghost fade
+                // when quickly grabbing the next widget.
+                actor.remove_all_transitions();
                 actor.remove_style_class_name('tahoe-dragging');
+
+                // Re-apply blur effect after drag ends
+                if (actor._tahoeReapplyBlur) {
+                    try { actor._tahoeReapplyBlur(); } catch {}
+                    actor._tahoeReapplyBlur = null;
+                }
+
                 this._state.setWidgetState(id, { x: actor.x, y: actor.y });
                 return Clutter.EVENT_STOP;
-            });
+            }
 
-            return Clutter.EVENT_STOP;
+            return Clutter.EVENT_PROPAGATE;
         });
 
-        // Expose cleanup so removeWidget can disconnect stage listeners if drag
-        // is in progress when the widget is destroyed externally.
-        actor._tahoeSignals    = [press];
-        actor._tahoeStageDrag  = _cleanupStage;
+        // Expose cleanup so removeWidget can disconnect the stage listener
+        // if a drag is in progress when the widget is destroyed externally.
+        actor._tahoeSignals   = [capturedId];
+        actor._tahoeStageDrag = () => {
+            if (capturedId) global.stage.disconnect(capturedId);
+            dragging = false;
+        };
     }
 
     /* ══ Auto-placement ═══════════════════════════════════════════════ */
@@ -219,6 +262,13 @@ export class LayoutManager {
 
         // Wait one frame for natural size allocation, then place precisely.
         actor._tahoeAutoPlace = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            // If the user already started dragging this widget, skip the
+            // auto-place so it doesn't jump the widget mid-drag.
+            if (this._drag?.id === id) {
+                actor._tahoeAutoPlace = 0;
+                return GLib.SOURCE_REMOVE;
+            }
+
             const safe = this._safeArea();
             const w    = actor.get_preferred_width(-1)[1]  || actor.width  || 240;
             const h    = actor.get_preferred_height(-1)[1] || actor.height || 120;
