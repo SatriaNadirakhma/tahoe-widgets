@@ -1,5 +1,5 @@
 /**
- * WidgetRegistry v3.0
+ * WidgetRegistry v3.1 — FIXED
  *
  * Fix: destroyWidget called state.removeActiveWidget which fires
  *      GSettings 'changed' → extension._syncWidgets → destroyWidget again.
@@ -52,7 +52,7 @@ export class WidgetRegistry {
         return widget;
     }
 
-    destroyWidget(id) {
+    destroyWidget(id, { silent = false } = {}) {
         // ── Guard: prevent re-entrant destroy ──────────────────────
         if (this._destroying.has(id)) {
             this._log.warn(`destroyWidget: already destroying '${id}', skipping`);
@@ -67,12 +67,12 @@ export class WidgetRegistry {
 
         this._destroying.add(id);
         try {
-            this._log.info(`Destroying: ${id}`);
+            this._log.info(`Destroying: ${id} (silent=${silent})`);
             widget.destroy();
             this._instances.delete(id);
-            // removeActiveWidget modifies GSettings but StateManager._suppressNotify
-            // ensures the 'changed' event is silenced during this write.
-            this._state.removeActiveWidget(id);
+            // silent=true → called from disable/suspend, do NOT touch GSettings
+            // so active-widgets list is preserved for next enable() call.
+            if (!silent) this._state.removeActiveWidget(id);
         } catch (e) {
             this._log.error(`destroyWidget error for '${id}':`, e.message);
         } finally {
@@ -87,6 +87,14 @@ export class WidgetRegistry {
     destroyAll() {
         [...this._instances.keys()].forEach(id => {
             try { this.destroyWidget(id); } catch {}
+        });
+    }
+
+    // Called on extension disable/suspend — destroys JS objects but does NOT
+    // wipe GSettings so active-widgets list survives for next enable() call.
+    destroyAllSilent() {
+        [...this._instances.keys()].forEach(id => {
+            try { this.destroyWidget(id, { silent: true }); } catch {}
         });
     }
 }

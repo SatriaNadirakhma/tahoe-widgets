@@ -1,5 +1,5 @@
 /**
- * Tahoe Widgets v3.0 — extension.js
+ * Tahoe Widgets v3.1 — extension.js  FIXED
  *
  * Fixes:
  *  1. _wireRegistryToLayout must run BEFORE WidgetPicker is created,
@@ -45,7 +45,7 @@ export default class TahoeWidgetsExtension extends Extension {
     enable() {
         this._log     = new Logger('Extension');
         this._syncing = false;   // re-entrancy guard
-        this._log.info('Enabling Tahoe Widgets v3.0');
+        this._log.info('Enabling Tahoe Widgets v3.1.0');
 
         try {
             // ── 1. Core singletons ─────────────────────────────────
@@ -85,6 +85,16 @@ export default class TahoeWidgetsExtension extends Extension {
             this._overviewHideId = Main.overview.connect('hidden',
                 () => this._layout.show());
 
+            // ── 7b. Hide widgets on lock screen, restore on unlock ──
+            //    Lock does NOT call disable()/enable(), so we must handle
+            //    it explicitly via screenShield signals.
+            if (Main.screenShield) {
+                this._lockId = Main.screenShield.connect('lock-screen-shown',
+                    () => this._layout.hide());
+                this._unlockId = Main.screenShield.connect('lock-screen-hidden',
+                    () => this._layout.show());
+            }
+
             // ── 8. Onboarding: show hint ONCE on genuine first run ───
             //    isFirstRun guards against re-showing after suspend/resume
             //    or any other disable→enable cycle (e.g. GNOME Shell restart).
@@ -96,7 +106,7 @@ export default class TahoeWidgetsExtension extends Extension {
                 this._state.isFirstRun = false;   // never show again
             }
 
-            this._log.info('Tahoe Widgets v3.0 enabled successfully');
+            this._log.info('Tahoe Widgets v3.1.0 enabled successfully');
 
         } catch (e) {
             this._log.error('Enable FAILED:', e.message, e.stack ?? '');
@@ -171,10 +181,12 @@ export default class TahoeWidgetsExtension extends Extension {
             return widget;
         };
 
-        // Patched destroyWidget: remove from canvas + destroy
-        this._registry.destroyWidget = (id) => {
-            this._layout.removeWidget(id);  // remove actor from canvas first
-            origDestroy(id);                 // then destroy the widget object
+        // Patched destroyWidget: remove from canvas + destroy.
+        // opts (e.g. { silent: true }) MUST be forwarded to origDestroy so
+        // the silent flag reaches state.removeActiveWidget() guard.
+        this._registry.destroyWidget = (id, opts = {}) => {
+            this._layout.removeWidget(id);   // remove actor from canvas first
+            origDestroy(id, opts);            // forward opts — silent flag preserved
         };
     }
 
@@ -189,6 +201,14 @@ export default class TahoeWidgetsExtension extends Extension {
             Main.overview.disconnect(this._overviewHideId);
             this._overviewHideId = null;
         }
+        if (this._lockId && Main.screenShield) {
+            Main.screenShield.disconnect(this._lockId);
+            this._lockId = null;
+        }
+        if (this._unlockId && Main.screenShield) {
+            Main.screenShield.disconnect(this._unlockId);
+            this._unlockId = null;
+        }
         if (this._unsubActiveWidgets) {
             this._unsubActiveWidgets();
             this._unsubActiveWidgets = null;
@@ -200,7 +220,11 @@ export default class TahoeWidgetsExtension extends Extension {
         // Restore original methods before destroying registry
         // (so destroyAll doesn't call the patched version after layout is gone)
         if (this._registry) {
-            try { this._registry.destroyAll(); } catch {}
+            // Use destroyAllSilent so active-widgets GSettings key is preserved.
+            // destroyAll() → destroyWidget() → removeActiveWidget() would wipe
+            // the list, causing widgets to not restore after suspend/resume or
+            // any other disable→enable cycle (lock screen, GNOME restart, etc.)
+            try { this._registry.destroyAllSilent(); } catch {}
             this._registry = null;
         }
 

@@ -473,7 +473,7 @@ tahoe-widgets@gnome/
 
 ---
 
-## License 3.0
+## License 2.0
 
 GNU General Public License v2.0 or later.  
 See [LICENSE](LICENSE) for full text.
