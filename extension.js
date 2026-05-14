@@ -1,5 +1,5 @@
 /**
- * Tahoe Widgets v2.1 — extension.js  FIXED
+ * Tahoe Widgets v3.0 — extension.js
  *
  * Fixes:
  *  1. _wireRegistryToLayout must run BEFORE WidgetPicker is created,
@@ -45,7 +45,7 @@ export default class TahoeWidgetsExtension extends Extension {
     enable() {
         this._log     = new Logger('Extension');
         this._syncing = false;   // re-entrancy guard
-        this._log.info('Enabling Tahoe Widgets v2.1.1');
+        this._log.info('Enabling Tahoe Widgets v3.0');
 
         try {
             // ── 1. Core singletons ─────────────────────────────────
@@ -96,7 +96,7 @@ export default class TahoeWidgetsExtension extends Extension {
                 this._state.isFirstRun = false;   // never show again
             }
 
-            this._log.info('Tahoe Widgets v2.1.1 enabled successfully');
+            this._log.info('Tahoe Widgets v3.0 enabled successfully');
 
         } catch (e) {
             this._log.error('Enable FAILED:', e.message, e.stack ?? '');

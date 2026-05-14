@@ -1,5 +1,5 @@
 /**
- * WidgetRegistry v2.1 — FIXED
+ * WidgetRegistry v3.0
  *
  * Fix: destroyWidget called state.removeActiveWidget which fires
  *      GSettings 'changed' → extension._syncWidgets → destroyWidget again.

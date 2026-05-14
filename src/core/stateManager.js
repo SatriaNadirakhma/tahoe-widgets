@@ -1,5 +1,5 @@
 /**
- * StateManager v2.1 — FIXED
+ * StateManager v3.0
  *
  * Fix: removeActiveWidget / setActiveWidgets modify GSettings which triggers
  *      the 'changed' signal which calls _notify('settings:active-widgets', …)

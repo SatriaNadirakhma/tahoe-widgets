@@ -1,5 +1,5 @@
 /**
- * PanelButton v2.1 — FIXED
+ * PanelButton v3.0
  *
  * Fix: Use GObject.registerClass explicitly instead of static block GTypeName.
  *      Required for reliable GObject registration in GNOME 49+.

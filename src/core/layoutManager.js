@@ -1,5 +1,5 @@
 /**
- * LayoutManager v2.1 — FIXED
+ * LayoutManager v3.0
  *
  * Fixes:
  *  - global.screen_width/height deprecated in GNOME 48+ → use primaryMonitor

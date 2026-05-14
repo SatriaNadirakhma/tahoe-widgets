@@ -1,5 +1,5 @@
 /**
- * BaseWidget v2.1 — FIXED
+ * BaseWidget v3.0
  *
  * Fixes:
  *  - St.Side removed in GNOME 45 → use St.Side.BOTTOM or omit (use PopupMenu.PopupMenu properly)

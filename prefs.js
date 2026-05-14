@@ -1,5 +1,5 @@
 /**
- * prefs.js v2.1 — FIXED
+ * prefs.js v3.0
  *
  * Fix: "Changes apply after toggling" → "Changes apply immediately"
  * Fix: Adw.MessageDialog needs transient_for parent to show properly
