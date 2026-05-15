@@ -15,6 +15,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { Logger }           from './src/utils/logger.js';
+import { registerFonts, unregisterFonts } from './src/utils/fontLoader.js';
 import { StateManager }     from './src/core/stateManager.js';
 import { WidgetRegistry }   from './src/core/widgetRegistry.js';
 import { LayoutManager }    from './src/core/layoutManager.js';
@@ -48,6 +49,11 @@ export default class TahoeWidgetsExtension extends Extension {
         this._log.info('Enabling Tahoe Widgets v3.1.0');
 
         try {
+            // ── 0. Daftarkan font Inter dari folder fonts/ ─────────
+            //    Harus sebelum widget dibuat agar St.Theme sudah
+            //    mengenal "Inter" saat CSS pertama kali di-parse.
+            registerFonts(this.path);
+
             // ── 1. Core singletons ─────────────────────────────────
             this._state    = new StateManager(this.getSettings());
             this._registry = new WidgetRegistry(this._state);
@@ -231,5 +237,9 @@ export default class TahoeWidgetsExtension extends Extension {
         this._layout?.destroy();      this._layout   = null;
         this._data?.destroy();        this._data     = null;
         this._state?.destroy();       this._state    = null;
+
+        // Unregister font Inter dari St.Theme — paling akhir,
+        // setelah semua widget yang memakai font tersebut sudah di-destroy.
+        unregisterFonts();
     }
 }

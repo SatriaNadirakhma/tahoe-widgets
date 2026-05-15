@@ -3,6 +3,12 @@
    All component styles in one file. Uses only CSS3 subset
    supported by GNOME Shell / St (no variables, no calc() in some
    older GNOME builds — keep it compatible to GNOME 45).
+
+   CATATAN FONT:
+   @font-face untuk "Inter" TIDAK didaftarkan di sini.
+   fontLoader.js menangani pendaftaran secara dinamis dari folder
+   fonts/ yang ada di dalam direktori ekstensi ini.
+   Lihat utils/fontLoader.js untuk detailnya.
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Base widget panel ────────────────────────────────────────────── */
@@ -41,13 +47,17 @@
 
 /* ── Typography ───────────────────────────────────────────────────── */
 
+/* "Inter" bisa dipakai di sini karena sudah didaftarkan lebih dulu
+   oleh fontLoader.js saat extension.enable() dipanggil.             */
+
 .tahoe-label {
     color:       rgba(255, 255, 255, 0.90);
-    font-family: "Cantarell", "Noto Sans", sans-serif;
+    font-family: "Inter", "Cantarell", "Noto Sans", sans-serif;
     font-size:   14px;
 }
 
 .tahoe-label-large {
+    font-family:    "Inter", "Cantarell", sans-serif;
     font-size:      52px;
     font-weight:    100;
     letter-spacing: -2px;
@@ -55,18 +65,21 @@
 }
 
 .tahoe-label-medium {
+    font-family: "Inter", "Cantarell", sans-serif;
     font-size:   20px;
     font-weight: 300;
     color:       rgba(255, 255, 255, 0.88);
 }
 
 .tahoe-label-small {
+    font-family: "Inter", "Cantarell", sans-serif;
     font-size:   12px;
     font-weight: 400;
     color:       rgba(255, 255, 255, 0.65);
 }
 
 .tahoe-label-caption {
+    font-family:     "Inter", "Cantarell", sans-serif;
     font-size:       10px;
     font-weight:     600;
     letter-spacing:  0.8px;
@@ -86,6 +99,7 @@
     border-radius:    8px;
     padding:          6px 14px;
     color:            rgba(255, 255, 255, 0.88);
+    font-family:      "Inter", "Cantarell", sans-serif;
     font-size:        13px;
     transition-duration: 120ms;
 }
@@ -124,28 +138,22 @@
 
 /* ── Clock widget ─────────────────────────────────────────────────── */
 
-.tahoe-clock { min-width: 190px; }
-
-.tahoe-clock-time {
-    font-size:      54px;
-    font-weight:    100;
-    letter-spacing: -2px;
-    color:          rgba(255, 255, 255, 0.96);
-    font-family:    "Cantarell", sans-serif;
+/* Clock widget — macOS Small 2×2 grid (155×155) */
+.tahoe-clock {
+    padding: 0;
+    min-width:  155px;
+    min-height: 155px;
+    max-width:  155px;
+    max-height: 155px;
 }
 
-.tahoe-clock-ampm {
-    font-size:   18px;
-    font-weight: 300;
-    color:       rgba(255, 255, 255, 0.68);
-    padding-bottom: 6px;
-}
-
-.tahoe-clock-date {
-    font-size:   13px;
-    font-weight: 400;
-    color:       rgba(255, 255, 255, 0.58);
-    margin-top:  2px;
+/* World clock — macOS Medium 2×4 grid (329×155) */
+.tahoe-world-clock {
+    padding: 0;
+    min-width:  329px;
+    min-height: 155px;
+    max-width:  329px;
+    max-height: 155px;
 }
 
 /* ── Weather widget ───────────────────────────────────────────────── */
@@ -153,12 +161,14 @@
 .tahoe-weather     { min-width: 290px; }
 
 .tahoe-weather-location {
+    font-family: "Inter", "Cantarell", sans-serif;
     font-size:   14px;
     font-weight: 600;
     color:       rgba(255, 255, 255, 0.90);
 }
 
 .tahoe-weather-temp {
+    font-family:    "Inter", "Cantarell", sans-serif;
     font-size:      50px;
     font-weight:    100;
     letter-spacing: -2px;
@@ -177,6 +187,7 @@
 .tahoe-calendar  { min-width: 270px; }
 
 .tahoe-calendar-header {
+    font-family: "Inter", "Cantarell", sans-serif;
     font-size:   15px;
     font-weight: 600;
     color:       rgba(255, 255, 255, 0.90);
@@ -197,6 +208,7 @@
 }
 
 .tahoe-cal-day-label {
+    font-family:     "Inter", "Cantarell", sans-serif;
     font-size:       10px;
     font-weight:     600;
     letter-spacing:  0.4px;
@@ -207,6 +219,7 @@
 }
 
 .tahoe-cal-day {
+    font-family:  "Inter", "Cantarell", sans-serif;
     font-size:    13px;
     color:        rgba(255, 255, 255, 0.75);
     min-width:    30px;
@@ -225,28 +238,14 @@
 }
 
 /* ── World clock ──────────────────────────────────────────────────── */
-
-.tahoe-world-clock   { min-width: 260px; }
-
-.tahoe-world-clock-row {
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    padding: 7px 0;
-}
-
-.tahoe-world-city   { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.88); }
-.tahoe-world-offset { font-size: 11px; color: rgba(255,255,255,0.40); }
-
-.tahoe-world-time {
-    font-size:      20px;
-    font-weight:    200;
-    letter-spacing: -0.5px;
-    color:          rgba(255, 255, 255, 0.92);
-}
+/* Size is set on .tahoe-world-clock above.
+   Text labels are drawn by Cairo/Pango — no CSS rules needed here. */
 
 /* ── Battery widget ───────────────────────────────────────────────── */
 
 .tahoe-battery       { min-width: 190px; }
 .tahoe-battery-percent {
+    font-family:    "Inter", "Cantarell", sans-serif;
     font-size:      30px;
     font-weight:    200;
     letter-spacing: -1px;
@@ -257,8 +256,8 @@
 
 .tahoe-quick-status  { min-width: 200px; }
 .tahoe-status-icon   { font-size: 16px; min-width: 20px; }
-.tahoe-status-text   { font-size: 13px; color: rgba(255,255,255,0.80); }
-.tahoe-status-value  { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.52); }
+.tahoe-status-text   { font-family: "Inter", "Cantarell", sans-serif; font-size: 13px; color: rgba(255,255,255,0.80); }
+.tahoe-status-value  { font-family: "Inter", "Cantarell", sans-serif; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.52); }
 
 /* ── Widget Picker panel ──────────────────────────────────────────── */
 
