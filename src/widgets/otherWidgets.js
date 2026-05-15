@@ -1,50 +1,227 @@
-import St      from 'gi://St';
-import Clutter from 'gi://Clutter';
-import Gio     from 'gi://Gio';
-import GLib    from 'gi://GLib';
-import { BaseWidget } from './baseWidget.js';
+/**
+ * otherWidgets.js v3.0
+ *
+ * WorldClockWidget — redesigned as macOS Medium (2×4 = 329×155 px):
+ *   Up to 4 mini analog clocks drawn with Cairo.
+ *   White face = daytime (06:00–19:59), dark face = nighttime.
+ *   City name + day/offset label beneath each clock.
+ *
+ * BatteryWidget & QuickStatusWidget — unchanged.
+ */
 
-/* ── WorldClockWidget ─────────────────────────────────────────────── */
+import St         from 'gi://St';
+import Clutter    from 'gi://Clutter';
+import Gio        from 'gi://Gio';
+import GLib       from 'gi://GLib';
+import Pango      from 'gi://Pango';
+import PangoCairo from 'gi://PangoCairo';
+import { BaseWidget, WIDGET_MEDIUM } from './baseWidget.js';
+
+const LINE_CAP_ROUND = 1;
+
+/* ══════════════════════════════════════════════════════════════════
+   WorldClockWidget
+   ══════════════════════════════════════════════════════════════════ */
+
 export class WorldClockWidget extends BaseWidget {
+
     build() {
         this.actor.add_style_class_name('tahoe-world-clock');
-        this._rows = []; this._buildRows();
-        this.startTimer(60_000, () => this._tick());
+        this.actor.set_size(WIDGET_MEDIUM.width, WIDGET_MEDIUM.height);
+        this._content.style = 'spacing:0; padding:0;';
+
+        this._dial = new St.DrawingArea({
+            reactive: false,
+            x_expand: true,
+            y_expand: true,
+        });
+        this._dial.connect('repaint', area => this._drawWorldClock(area));
+        this._content.add_child(this._dial);
+
+        this._timerId = this.startTimer(1000, () => this._tick(), false);
+        this._tick();
+
         this._unsubs.push(
-            this._state.subscribe('settings:world-clock-zones', () => {
-                this._content.remove_all_children(); this._rows = []; this._buildRows(); this._tick();
-            }),
-            this._state.subscribe('settings:clock-format', () => this._tick()),
+            this._state.subscribe('settings:world-clock-zones',
+                () => this._tick()),
+            this._state.subscribe('settings:clock-format',
+                () => this._tick()),
         );
     }
-    _buildRows() {
-        this._content.add_child(new St.Label({ text: 'World Clock', style_class: 'tahoe-label-caption', style: 'margin-bottom:6px;' }));
-        (this._state.worldClockZones ?? []).forEach(tz => {
-            const row = new St.BoxLayout({ vertical: false, x_expand: true, style_class: 'tahoe-world-clock-row', style: 'spacing:8px;' });
-            const left = new St.BoxLayout({ vertical: true, x_expand: true });
-            const city = new St.Label({ text: this._cityName(tz), style_class: 'tahoe-world-city' });
-            const offset = new St.Label({ text: '', style_class: 'tahoe-world-offset' });
-            left.add_child(city); left.add_child(offset);
-            const time = new St.Label({ text: '--:--', style_class: 'tahoe-world-time', y_align: Clutter.ActorAlign.CENTER });
-            row.add_child(left); row.add_child(time);
-            row._tz = tz; row._offset = offset; row._time = time;
-            this._content.add_child(row); this._rows.push(row);
-        });
-    }
+
     _tick() {
-        const now = new Date(), is12h = this._state.clockFormat !== '24h';
-        this._rows.forEach(row => {
-            try {
-                const parts = new Intl.DateTimeFormat('en-US', { timeZone: row._tz, hour: 'numeric', minute: '2-digit', hour12: is12h }).formatToParts(now);
-                const p = Object.fromEntries(parts.map(x => [x.type, x.value]));
-                row._time.set_text(is12h ? `${p.hour}:${p.minute} ${p.dayPeriod ?? ''}`.trim() : `${p.hour}:${p.minute}`);
-                const diff = this._tzOffsetMinutes(row._tz, now) - (-now.getTimezoneOffset());
-                const sign = diff >= 0 ? '+' : '−', h = Math.floor(Math.abs(diff)/60), m = Math.abs(diff)%60;
-                row._offset.set_text(diff === 0 ? 'Local' : m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`);
-            } catch { row._time.set_text('—'); }
-        });
+        this._dial.queue_repaint();
     }
-    _cityName(tz) { const p = tz.split('/'); return p[p.length-1].replace(/_/g,' '); }
+
+    /* ── Cairo world-clock drawing ──────────────────────────────── */
+
+    _drawWorldClock(area) {
+        const cr    = area.get_context();
+        const w     = area.get_width();
+        const h     = area.get_height();
+        const zones = (this._state.worldClockZones ?? []).slice(0, 4);
+
+        if (!zones.length) {
+            this._drawPlaceholder(cr, w, h);
+            cr.$dispose();
+            return;
+        }
+
+        const count  = zones.length;
+        const cellW  = w / count;
+        // Clock face radius — fits within cell, leaves room for labels
+        const clockR = Math.min(cellW / 2 - 8, h * 0.40);
+        const clockCY = h * 0.42;          // vertical centre of clock face
+        const now    = new Date();
+
+        for (let i = 0; i < count; i++) {
+            const tz = zones[i];
+            const cx = cellW * i + cellW / 2;
+
+            // ── Resolve local time in this timezone ────────────────
+            let tzHr = 0, tzMin = 0, tzSec = 0;
+            try {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    hour: 'numeric', minute: '2-digit', second: '2-digit',
+                    hour12: false,
+                }).formatToParts(now);
+                const p  = Object.fromEntries(parts.map(x => [x.type, x.value]));
+                tzHr  = parseInt(p.hour   ?? '0');
+                tzMin = parseInt(p.minute ?? '0');
+                tzSec = parseInt(p.second ?? '0');
+            } catch { /* fallback to 0 */ }
+
+            const isDaytime = tzHr >= 6 && tzHr < 20;
+
+            // ── Clock face ─────────────────────────────────────────
+            cr.arc(cx, clockCY, clockR, 0, 2 * Math.PI);
+            cr.setSourceRGBA(
+                ...( isDaytime ? [1, 1, 1, 0.92] : [0.17, 0.16, 0.17, 0.92] )
+            );
+            cr.fill();
+
+            const fg = isDaytime ? [0.15, 0.15, 0.15] : [1, 1, 1];
+
+            // ── Hour tick marks ────────────────────────────────────
+            cr.setLineCap(LINE_CAP_ROUND);
+            for (let t = 0; t < 12; t++) {
+                const a   = (t / 12) * 2 * Math.PI - Math.PI / 2;
+                const isH = (t % 3 === 0);
+                const r1  = clockR;
+                const r2  = clockR - (isH ? 6 : 3);
+                cr.setSourceRGBA(...fg, isH ? 0.55 : 0.25);
+                cr.setLineWidth(isH ? 1.5 : 0.8);
+                cr.moveTo(cx + Math.cos(a) * r1, clockCY + Math.sin(a) * r1);
+                cr.lineTo(cx + Math.cos(a) * r2, clockCY + Math.sin(a) * r2);
+                cr.stroke();
+            }
+
+            // ── Hour hand ──────────────────────────────────────────
+            const hr       = (tzHr % 12) + tzMin / 60;
+            const hrAngle  = (hr  / 12) * 2 * Math.PI - Math.PI / 2;
+            cr.setLineCap(LINE_CAP_ROUND);
+            cr.setLineWidth(2);
+            cr.setSourceRGBA(...fg, 0.95);
+            cr.moveTo(cx, clockCY);
+            cr.lineTo(cx + Math.cos(hrAngle) * clockR * 0.50,
+                      clockCY + Math.sin(hrAngle) * clockR * 0.50);
+            cr.stroke();
+
+            // ── Minute hand ────────────────────────────────────────
+            const minAngle = ((tzMin + tzSec / 60) / 60) * 2 * Math.PI - Math.PI / 2;
+            cr.setLineWidth(1.5);
+            cr.setSourceRGBA(...fg, 0.95);
+            cr.moveTo(cx, clockCY);
+            cr.lineTo(cx + Math.cos(minAngle) * clockR * 0.72,
+                      clockCY + Math.sin(minAngle) * clockR * 0.72);
+            cr.stroke();
+
+            // ── Second hand (orange) ───────────────────────────────
+            const secAngle = (tzSec / 60) * 2 * Math.PI - Math.PI / 2;
+            cr.setLineWidth(0.8);
+            cr.setSourceRGBA(1, 0.502, 0, 0.9);
+            cr.moveTo(cx - Math.cos(secAngle) * clockR * 0.15,
+                      clockCY - Math.sin(secAngle) * clockR * 0.15);
+            cr.lineTo(cx + Math.cos(secAngle) * clockR * 0.78,
+                      clockCY + Math.sin(secAngle) * clockR * 0.78);
+            cr.stroke();
+
+            // ── Center dots ────────────────────────────────────────
+            cr.arc(cx, clockCY, 3, 0, 2 * Math.PI);
+            cr.setSourceRGBA(...fg, 1);
+            cr.fill();
+            cr.arc(cx, clockCY, 1.5, 0, 2 * Math.PI);
+            cr.setSourceRGBA(1, 0.502, 0, 1);
+            cr.fill();
+
+            // ── Text labels ────────────────────────────────────────
+            try {
+                const labelY = clockCY + clockR + 7;
+
+                // City name
+                const cityLayout = PangoCairo.create_layout(cr);
+                cityLayout.set_font_description(
+                    Pango.FontDescription.from_string('Inter Semi-Bold 8')
+                );
+                cityLayout.set_alignment(Pango.Alignment.CENTER);
+                cityLayout.set_width(Pango.units_from_double(cellW - 4));
+                const cityName = tz.split('/').pop().replace(/_/g, ' ');
+                cityLayout.set_text(cityName, -1);
+                const [, cInk] = cityLayout.get_pixel_extents();
+                cr.moveTo(cx - (cInk.width / 2 + cInk.x), labelY);
+                cr.setSourceRGBA(1, 1, 1, 0.92);
+                PangoCairo.show_layout(cr, cityLayout);
+
+                // Day + UTC offset
+                const offLayout = PangoCairo.create_layout(cr);
+                offLayout.set_font_description(
+                    Pango.FontDescription.from_string('Inter 7')
+                );
+                offLayout.set_alignment(Pango.Alignment.CENTER);
+                offLayout.set_width(Pango.units_from_double(cellW - 4));
+
+                const tzDate  = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+                const dayDiff = tzDate.getDate() - now.getDate();
+                const dayStr  = dayDiff > 0 ? 'Tomorrow'
+                              : dayDiff < 0 ? 'Yesterday'
+                              : 'Today';
+
+                const offMin  = this._tzOffsetMinutes(tz, now);
+                const sign    = offMin >= 0 ? '+' : '−';
+                const offH    = Math.floor(Math.abs(offMin) / 60);
+                const offM    = Math.abs(offMin) % 60;
+                const offStr  = offM > 0
+                    ? `${sign}${offH}h${offM}m`
+                    : `${sign}${offH}HRS`;
+
+                offLayout.set_text(`${dayStr}\n${offStr}`, -1);
+                const [, oInk] = offLayout.get_pixel_extents();
+                cr.moveTo(cx - (oInk.width / 2 + oInk.x), labelY + 12);
+                cr.setSourceRGBA(0.55, 0.55, 0.55, 1);
+                PangoCairo.show_layout(cr, offLayout);
+
+            } catch { /* skip labels if Pango unavailable */ }
+        }
+
+        cr.$dispose();
+    }
+
+    _drawPlaceholder(cr, w, h) {
+        try {
+            const layout = PangoCairo.create_layout(cr);
+            layout.set_font_description(
+                Pango.FontDescription.from_string('Inter 10')
+            );
+            layout.set_text('No timezones — add them in Settings', -1);
+            const [, ink] = layout.get_pixel_extents();
+            cr.moveTo(w / 2 - (ink.width / 2 + ink.x),
+                      h / 2 - (ink.height / 2 + ink.y));
+            cr.setSourceRGBA(1, 1, 1, 0.4);
+            PangoCairo.show_layout(cr, layout);
+        } catch {}
+    }
+
     _tzOffsetMinutes(tz, date) {
         try {
             const utc = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
@@ -52,9 +229,16 @@ export class WorldClockWidget extends BaseWidget {
             return (tzd - utc) / 60_000;
         } catch { return 0; }
     }
+
+    destroy() {
+        this.stopTimer(this._timerId);
+        super.destroy();
+    }
 }
 
-/* ── BatteryWidget ────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   BatteryWidget — unchanged
+   ══════════════════════════════════════════════════════════════════ */
 const UPOWER_BUS = 'org.freedesktop.UPower';
 const DISP_PATH  = '/org/freedesktop/UPower/devices/DisplayDevice';
 const DEV_IFACE  = 'org.freedesktop.UPower.Device';
@@ -118,7 +302,9 @@ export class BatteryWidget extends BaseWidget {
     }
 }
 
-/* ── QuickStatusWidget ────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   QuickStatusWidget — unchanged
+   ══════════════════════════════════════════════════════════════════ */
 export class QuickStatusWidget extends BaseWidget {
     build() {
         this.actor.add_style_class_name('tahoe-quick-status');

@@ -1,11 +1,9 @@
 /**
- * BaseWidget v3.0
+ * BaseWidget v3.1
  *
- * Fixes:
- *  - St.Side removed in GNOME 45 → use St.Side.BOTTOM or omit (use PopupMenu.PopupMenu properly)
- *  - Main.uiGroup.add_child(menu.actor) → .actor deprecated → use menu directly
- *  - Wrap entire context-menu build in try/catch so a menu crash doesn't
- *    prevent the widget from appearing on screen
+ * Changes:
+ *  - Removed hover enter/leave event handlers (hover CSS removed — no-op)
+ *  - Added WIDGET_SMALL / WIDGET_MEDIUM size constants (macOS-style grid)
  */
 
 import St      from 'gi://St';
@@ -14,6 +12,12 @@ import GLib    from 'gi://GLib';
 import * as Main      from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Logger }     from '../utils/logger.js';
+
+// macOS-style widget grid sizes
+// Small  = 2×2 grid units ≈ 155×155 px
+// Medium = 2×4 grid units ≈ 329×155 px
+export const WIDGET_SMALL  = { width: 155, height: 155 };
+export const WIDGET_MEDIUM = { width: 329, height: 155 };
 
 export class BaseWidget {
     constructor({ id, state, registry, data }) {
@@ -40,7 +44,7 @@ export class BaseWidget {
         this._dragHandle = new St.Widget({
             style_class: 'tahoe-drag-handle',
             x_expand:    true,
-            height:      0,           // hidden by default; shown in edit mode
+            height:      0,
         });
         this.actor.add_child(this._dragHandle);
 
@@ -53,13 +57,7 @@ export class BaseWidget {
         });
         this.actor.add_child(this._content);
 
-        // ── Hover ──────────────────────────────────────────────────
-        this.actor.connect('enter-event', () =>
-            this.actor.add_style_class_name('tahoe-widget-hover'));
-        this.actor.connect('leave-event', () =>
-            this.actor.remove_style_class_name('tahoe-widget-hover'));
-
-        // ── Context menu (wrapped in try/catch — must not crash widget) ──
+        // ── Context menu ───────────────────────────────────────────
         this._buildContextMenu();
 
         // ── Re-style on settings change ────────────────────────────
@@ -129,34 +127,23 @@ export class BaseWidget {
         this._content.add_child(box);
     }
 
-    /* ══ Context menu — FIXED for GNOME 45+ ══════════════════════════ */
+    /* ══ Context menu ═════════════════════════════════════════════════ */
 
     _buildContextMenu() {
         try {
-            // GNOME 45+: St.Side is still available but St.Side.TOP works.
-            // The safest approach is St.Side.BOTTOM to appear above the widget.
-            this._menu = new PopupMenu.PopupMenu(
-                this.actor,
-                0.5,
-                St.Side.BOTTOM
-            );
-
-            // GNOME 45+: add the menu to uiGroup (not menu.actor — that's deprecated)
+            this._menu = new PopupMenu.PopupMenu(this.actor, 0.5, St.Side.BOTTOM);
             Main.uiGroup.add_child(this._menu.actor);
             this._menu.actor.hide();
 
-            // Remove widget
             const removeItem = new PopupMenu.PopupMenuItem('Remove Widget');
             removeItem.connect('activate', () => {
                 this._menu.close();
-                // Use a short delay so the menu animation finishes first
                 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                     try { this._registry.destroyWidget(this.id); } catch {}
                     return GLib.SOURCE_REMOVE;
                 });
             });
             this._menu.addMenuItem(removeItem);
-
             this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             const settingsItem = new PopupMenu.PopupMenuItem('Widget Settings…');
@@ -168,15 +155,7 @@ export class BaseWidget {
                 } catch {}
             });
             this._menu.addMenuItem(settingsItem);
-
-            // Right-click opens menu via PopupMenu's built-in handling.
-            // We do NOT connect a separate button-press-event here because
-            // LayoutManager._connectDrag already handles left-click for
-            // dragging on the same actor.  Two button-press-event handlers
-            // on the same actor cause event conflicts that break dragging.
-
         } catch (e) {
-            // Menu failed — widget still shows, just without right-click menu
             this._log.warn('Context menu unavailable:', e.message);
             this._menu = null;
         }
@@ -185,7 +164,7 @@ export class BaseWidget {
     /* ══ Visual styling ═══════════════════════════════════════════════ */
 
     _applyPanelStyle() {
-        const opacity = this._state.panelOpacity ?? 0.18;
+        const opacity = this._state.panelOpacity ?? 0.10;
         const radius  = this._state.cornerRadius ?? 20;
         this.actor.style =
             `background-color: rgba(255,255,255,${opacity});` +
@@ -197,17 +176,9 @@ export class BaseWidget {
         const sigma = this._state.blurRadius ?? 20;
         if (sigma <= 0) return;
         try {
-            // Use a low-quality blur to avoid severe lag during drag.
-            // Clutter.BlurEffect is extremely expensive (offscreen buffer +
-            // convolution per frame).  A small sigma keeps it usable.
             const blur = new Clutter.BlurEffect({ sigma: Math.min(sigma / 3, 4) });
             this.actor.add_effect_with_name('blur', blur);
-        } catch {
-            // BlurEffect not available — skip silently
-        }
-
-        // Expose a re-apply function so LayoutManager can restore the blur
-        // after temporarily removing it during drag (for performance).
+        } catch {}
         this.actor._tahoeReapplyBlur = () => this._applyBlur();
     }
 

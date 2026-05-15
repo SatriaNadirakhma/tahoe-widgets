@@ -1,176 +1,218 @@
-import St      from 'gi://St';
-import Clutter from 'gi://Clutter';
-import { BaseWidget } from './baseWidget.js';
+/**
+ * ClockWidget v3.1 — Font dari folder proyek
+ *
+ * Perubahan dari v3.0:
+ *  - Font Inter untuk PangoCairo diambil langsung dari folder fonts/
+ *    di dalam direktori ekstensi, via getFontDescription() helper.
+ *  - Fallback ke 'Cantarell' jika file tidak ditemukan.
+ *  - extensionPath harus di-pass lewat options (lihat contoh di bawah).
+ *
+ * Contoh pemanggilan dari widget registry / extension.js:
+ *
+ *   import { ClockWidget } from './widgets/clockWidget.js';
+ *
+ *   const clock = new ClockWidget({
+ *       id:            'clock-1',
+ *       state:         appState,
+ *       registry:      widgetRegistry,
+ *       extensionPath: extension.path,   // <── tambahkan ini
+ *   });
+ */
 
-const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const MONTHS = ['January','February','March','April','May','June',
-                'July','August','September','October','November','December'];
+import St         from 'gi://St';
+import Clutter    from 'gi://Clutter';
+import Pango      from 'gi://Pango';
+import PangoCairo from 'gi://PangoCairo';
+import Gio        from 'gi://Gio';
+import { BaseWidget, WIDGET_SMALL } from './baseWidget.js';
 
-// Cairo LineCap.ROUND = 1  (avoid named import for GNOME version compatibility)
 const LINE_CAP_ROUND = 1;
 
 export class ClockWidget extends BaseWidget {
 
+    constructor(options) {
+        super(options);
+        // extensionPath dipakai untuk mencari file font di folder fonts/
+        this._extensionPath = options.extensionPath ?? null;
+    }
+
     build() {
         this.actor.add_style_class_name('tahoe-clock');
 
-        /* ── Overlay: dial (bottom) + labels (top) ─────────────────── */
-        const overlay = new Clutter.Actor({
-            layout_manager: new Clutter.BinLayout(),
-            x_expand: true,
-            y_expand: true,
-        });
+        // Fixed 2×2 grid size — content fills it edge-to-edge
+        this.actor.set_size(WIDGET_SMALL.width, WIDGET_SMALL.height);
+        this._content.style = 'spacing:0; padding:0;';
 
-        /* ── Tick-mark dial (St.DrawingArea) ───────────────────────── */
         this._dial = new St.DrawingArea({
             reactive: false,
             x_expand: true,
             y_expand: true,
-            // Floor size so tick ring always looks circular
-            style: 'min-width: 160px; min-height: 160px;',
         });
-        this._dial.connect('repaint', area => this._drawDial(area));
-        overlay.add_child(this._dial);   // z-order: below labels
-
-        /* ── Labels stack (centred on top of dial) ─────────────────── */
-        const labels = new St.BoxLayout({
-            vertical: true,
-            x_align:  Clutter.ActorAlign.CENTER,
-            y_align:  Clutter.ActorAlign.CENTER,
-            x_expand: true,
-            y_expand: true,
-            // Inset so text doesn't overlap the tick ring
-            style:    'padding: 20px;',
-        });
-
-        this._timeRow = new St.BoxLayout({
-            vertical: false,
-            style:    'spacing:3px;',
-            x_align:  Clutter.ActorAlign.CENTER,
-        });
-        this._timeLabel = new St.Label({
-            text:        '--:--',
-            style_class: 'tahoe-clock-time',
-            y_align:     Clutter.ActorAlign.CENTER,
-        });
-        this._ampmLabel = new St.Label({
-            text:        '',
-            style_class: 'tahoe-clock-ampm',
-            y_align:     Clutter.ActorAlign.CENTER,
-        });
-        this._timeRow.add_child(this._timeLabel);
-        this._timeRow.add_child(this._ampmLabel);
-
-        this._dateLabel = new St.Label({
-            text:        '',
-            style_class: 'tahoe-clock-date',
-            x_align:     Clutter.ActorAlign.CENTER,
-        });
-
-        labels.add_child(this._timeRow);
-        labels.add_child(this._dateLabel);
-        overlay.add_child(labels);       // z-order: above dial
-
-        this._content.add_child(overlay);
-
-        /* ── Initial state ──────────────────────────────────────────── */
-        this._currentSecond = 0;
+        this._dial.connect('repaint', area => this._drawClock(area));
+        this._content.add_child(this._dial);
 
         this._tick();
         this._timerId = this.startTimer(1000, () => this._tick(), false);
-        this._unsubs.push(
-            this._state.subscribe('settings:clock-format',       () => this._tick()),
-            this._state.subscribe('settings:clock-show-seconds', () => this._tick()),
-        );
     }
-
-    /* ── Update every second ──────────────────────────────────────────── */
 
     _tick() {
-        const now   = new Date();
-        const is12h = this._state.clockFormat === '12h';
-        const secs  = this._state.clockSeconds;
-        let hours   = now.getHours(), ampm = '';
-
-        if (is12h) {
-            ampm  = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-        }
-
-        const hStr = is12h ? String(hours) : String(hours).padStart(2, '0');
-        const mStr = String(now.getMinutes()).padStart(2, '0');
-        const sStr = secs ? `:${String(now.getSeconds()).padStart(2, '0')}` : '';
-
-        this._timeLabel.set_text(`${hStr}:${mStr}${sStr}`);
-        this._ampmLabel.set_text(is12h ? ampm : '');
-        this._dateLabel.set_text(
-            `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`
-        );
-
-        this._currentSecond = now.getSeconds();
-        this._dial.queue_repaint();   // redraw dial ring for new second
+        this._dial.queue_repaint();
     }
 
-    /* ── Cairo dial drawing ───────────────────────────────────────────── */
+    /* ── Font helper ──────────────────────────────────────────────── */
 
-    _drawDial(area) {
+    /**
+     * Kembalikan Pango.FontDescription yang menggunakan Inter dari
+     * folder fonts/ ekstensi jika tersedia, atau fallback ke Cantarell.
+     *
+     * Catatan: PangoCairo menggunakan font yang sudah terdaftar di
+     * fontconfig/St theme — bukan load file langsung. Karena fontLoader.js
+     * sudah mendaftarkan @font-face ke St.Theme saat enable(), Pango
+     * di dalam Cairo context yang sama akan mengenali "Inter".
+     *
+     * _getFontDesc() hanya memvalidasi bahwa font file ada, lalu
+     * mengembalikan descriptor string yang tepat. Jika tidak ada,
+     * fallback ke Cantarell agar tidak error.
+     *
+     * @param {string} spec  — misal: 'Semi-Bold 9', 'Light 13'
+     * @returns {Pango.FontDescription}
+     */
+    _getFontDesc(spec) {
+        // Cek apakah Inter sudah tersedia (ada file-nya di folder proyek)
+        if (this._extensionPath) {
+            const probe = Gio.File.new_for_path(
+                `${this._extensionPath}/fonts/Inter-Regular.ttf`
+            );
+            if (probe.query_exists(null)) {
+                return Pango.FontDescription.from_string(`Inter ${spec}`);
+            }
+            this._log.warn('Inter tidak ditemukan di fonts/ — fallback ke Cantarell');
+        }
+        return Pango.FontDescription.from_string(`Cantarell ${spec}`);
+    }
+
+    /* ── Cairo analog clock ───────────────────────────────────────── */
+
+    _drawClock(area) {
         const cr  = area.get_context();
         const w   = area.get_width();
         const h   = area.get_height();
         const cx  = w / 2;
         const cy  = h / 2;
+        // Leave a small inset so the face sits inside the rounded widget panel
+        const faceR = Math.min(w, h) / 2 - 8;
 
-        // Outer radius: stay within the widget boundary with a small margin
-        const r   = Math.min(w, h) / 2 - 5;
-        const sec = this._currentSecond;
+        const now = new Date();
+        const sec = now.getSeconds();
+        const min = now.getMinutes() + sec / 60;
+        const hr  = (now.getHours() % 12) + now.getMinutes() / 60;
 
+        // ── Clock face (white filled circle) ──────────────────────
+        cr.arc(cx, cy, faceR, 0, 2 * Math.PI);
+        cr.setSourceRGBA(1, 1, 1, 0.88);
+        cr.fill();
+
+        // ── Numbers 1–12 ──────────────────────────────────────────
+        const numR = faceR - 14;
+        try {
+            const layout = PangoCairo.create_layout(cr);
+
+            // Gunakan Inter dari folder proyek (atau Cantarell sebagai fallback)
+            layout.set_font_description(this._getFontDesc('Semi-Bold 9'));
+
+            cr.setSourceRGBA(0.15, 0.15, 0.15, 0.88);
+
+            for (let i = 1; i <= 12; i++) {
+                const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+                const nx = cx + Math.cos(angle) * numR;
+                const ny = cy + Math.sin(angle) * numR;
+
+                layout.set_text(String(i), -1);
+                const [, ink] = layout.get_pixel_extents();
+                cr.moveTo(
+                    nx - (ink.width  / 2 + ink.x),
+                    ny - (ink.height / 2 + ink.y)
+                );
+                PangoCairo.show_layout(cr, layout);
+            }
+        } catch {
+            // Fallback: hour tick marks jika PangoCairo tidak tersedia
+            cr.setLineCap(LINE_CAP_ROUND);
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+                const x1 = cx + Math.cos(angle) * faceR;
+                const y1 = cy + Math.sin(angle) * faceR;
+                const x2 = cx + Math.cos(angle) * (faceR - 9);
+                const y2 = cy + Math.sin(angle) * (faceR - 9);
+                cr.setSourceRGBA(0.15, 0.15, 0.15, 0.7);
+                cr.setLineWidth(2.5);
+                cr.moveTo(x1, y1);
+                cr.lineTo(x2, y2);
+                cr.stroke();
+            }
+        }
+
+        // ── Minute tick marks (small) ─────────────────────────────
         cr.setLineCap(LINE_CAP_ROUND);
-
         for (let i = 0; i < 60; i++) {
-            // 12 o'clock = top → angle offset -π/2
-            const angle  = (i / 60) * 2 * Math.PI - Math.PI / 2;
-            const isHour = (i % 5 === 0);
-
-            // Hour marks are longer and thicker (like the reference screenshot)
-            const tickLen = isHour ? 9 : 5;
-            const lineW   = isHour ? 2.2 : 1.4;
-
-            // Per-second sweep animation:
-            //   current second  → full brightness  (visual "tick" pop)
-            //   elapsed seconds → medium            (progress arc)
-            //   future seconds  → dim               (unlit)
-            let alpha;
-            if (i === sec)    alpha = 1.0;
-            else if (i < sec) alpha = 0.55;
-            else              alpha = 0.18;
-
-            const x1 = cx + Math.cos(angle) * r;
-            const y1 = cy + Math.sin(angle) * r;
-            const x2 = cx + Math.cos(angle) * (r - tickLen);
-            const y2 = cy + Math.sin(angle) * (r - tickLen);
-
-            cr.setSourceRGBA(1, 1, 1, alpha);
-            cr.setLineWidth(lineW);
+            if (i % 5 === 0) continue; // skip — hour position
+            const angle = (i / 60) * 2 * Math.PI - Math.PI / 2;
+            const x1 = cx + Math.cos(angle) * faceR;
+            const y1 = cy + Math.sin(angle) * faceR;
+            const x2 = cx + Math.cos(angle) * (faceR - 4);
+            const y2 = cy + Math.sin(angle) * (faceR - 4);
+            cr.setSourceRGBA(0.15, 0.15, 0.15, 0.25);
+            cr.setLineWidth(1);
             cr.moveTo(x1, y1);
             cr.lineTo(x2, y2);
             cr.stroke();
         }
 
-        // Small filled dot at the active-second position — extra accent
-        const dotAngle = (sec / 60) * 2 * Math.PI - Math.PI / 2;
-        const dotR     = r - 2.5;
-        cr.arc(
-            cx + Math.cos(dotAngle) * dotR,
-            cy + Math.sin(dotAngle) * dotR,
-            2.5, 0, 2 * Math.PI
-        );
-        cr.setSourceRGBA(1, 1, 1, 0.95);
+        // ── Hour hand ─────────────────────────────────────────────
+        const hrAngle = (hr / 12) * 2 * Math.PI - Math.PI / 2;
+        const hrLen   = faceR * 0.50;
+        cr.setLineCap(LINE_CAP_ROUND);
+        cr.setLineWidth(3);
+        cr.setSourceRGBA(0.15, 0.15, 0.15, 0.95);
+        cr.moveTo(cx, cy);
+        cr.lineTo(cx + Math.cos(hrAngle) * hrLen,
+                  cy + Math.sin(hrAngle) * hrLen);
+        cr.stroke();
+
+        // ── Minute hand ───────────────────────────────────────────
+        const minAngle = (min / 60) * 2 * Math.PI - Math.PI / 2;
+        const minLen   = faceR * 0.73;
+        cr.setLineWidth(3);
+        cr.setSourceRGBA(0.15, 0.15, 0.15, 0.95);
+        cr.moveTo(cx, cy);
+        cr.lineTo(cx + Math.cos(minAngle) * minLen,
+                  cy + Math.sin(minAngle) * minLen);
+        cr.stroke();
+
+        // ── Second hand (orange, with short tail) ─────────────────
+        const secAngle = (sec / 60) * 2 * Math.PI - Math.PI / 2;
+        const secLen   = faceR * 0.78;
+        const secTail  = faceR * 0.18;
+        cr.setLineWidth(1);
+        cr.setSourceRGBA(1, 0.502, 0, 0.95);
+        cr.moveTo(cx - Math.cos(secAngle) * secTail,
+                  cy - Math.sin(secAngle) * secTail);
+        cr.lineTo(cx + Math.cos(secAngle) * secLen,
+                  cy + Math.sin(secAngle) * secLen);
+        cr.stroke();
+
+        // ── Center dot ────────────────────────────────────────────
+        cr.arc(cx, cy, 4.5, 0, 2 * Math.PI);
+        cr.setSourceRGBA(0.15, 0.15, 0.15, 1);
+        cr.fill();
+        cr.arc(cx, cy, 2.5, 0, 2 * Math.PI);
+        cr.setSourceRGBA(1, 0.502, 0, 1);
         cr.fill();
 
         cr.$dispose();
     }
 
-    /* ── Lifecycle ────────────────────────────────────────────────────── */
+    /* ── Lifecycle ────────────────────────────────────────────────── */
 
     destroy() {
         this.stopTimer(this._timerId);
