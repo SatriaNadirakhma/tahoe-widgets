@@ -40,6 +40,7 @@ export class WidgetRegistry {
         this._log.info(`Instantiating: ${id}`);
 
         const widget = new desc.Cls({
+            ...(desc.defaults ?? {}),
             ...opts,
             id,
             state:    this._state,

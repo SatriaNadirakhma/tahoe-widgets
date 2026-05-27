@@ -39,6 +39,10 @@ export default class TahoePreferences extends ExtensionPreferences {
         page.add(vg);
 
         const cg = this._group('Color Scheme');
+        cg.add(this._comboRow(s, 'background-mode', 'Background Style',
+            [{ value: 'transparent', label: 'Transparent (glassmorphism)' },
+             { value: 'light',       label: 'Light surface' },
+             { value: 'dark',        label: 'Dark surface'  }]));
         cg.add(this._comboRow(s, 'color-scheme', 'Theme',
             [{ value: 'auto',  label: 'Automatic (follow shell)' },
              { value: 'light', label: 'Light' },
@@ -126,12 +130,13 @@ export default class TahoePreferences extends ExtensionPreferences {
         const page = this._page('Widgets', 'view-app-grid-symbolic');
 
         const all = [
-            { id: 'clock',       icon: '🕐', label: 'Clock',       desc: 'Live digital clock'      },
-            { id: 'weather',     icon: '🌤️', label: 'Weather',      desc: 'Conditions + forecast'   },
-            { id: 'calendar',    icon: '📅', label: 'Calendar',     desc: 'Monthly mini-calendar'   },
-            { id: 'worldClock',  icon: '🌍', label: 'World Clock',  desc: 'Multi-timezone display'  },
-            { id: 'battery',     icon: '🔋', label: 'Battery',      desc: 'Battery + devices'       },
-            { id: 'quickStatus', icon: '📊', label: 'Quick Status', desc: 'Wi-Fi, CPU, RAM'         },
+            { id: 'clock',          icon: '🕐', label: 'Clock',         desc: 'Analog clock face'        },
+            { id: 'weather',        icon: '🌤️', label: 'Weather',        desc: 'Conditions + forecast'    },
+            { id: 'calendar',       icon: '📅', label: 'Calendar',       desc: 'Today: date, day & month'   },
+            { id: 'calendar-double',icon: '📆', label: 'Calendar 2×',    desc: 'Today + mini calendar'       },
+            { id: 'worldClock',     icon: '🌍', label: 'World Clock',    desc: 'Multi-timezone display'   },
+            { id: 'battery',        icon: '🔋', label: 'Battery',        desc: 'Battery + devices'        },
+            { id: 'quickStatus',    icon: '📊', label: 'Quick Status',   desc: 'Wi-Fi, CPU, RAM'          },
         ];
 
         const wg = this._group('Enable / Disable');

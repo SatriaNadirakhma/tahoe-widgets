@@ -237,7 +237,7 @@ export class WorldClockWidget extends BaseWidget {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   BatteryWidget — unchanged
+   BatteryWidget — rewritten to reliably detect laptop battery
    ══════════════════════════════════════════════════════════════════ */
 const UPOWER_BUS = 'org.freedesktop.UPower';
 const DISP_PATH  = '/org/freedesktop/UPower/devices/DisplayDevice';
@@ -246,59 +246,139 @@ const PROP_IFACE = 'org.freedesktop.DBus.Properties';
 const DEVICE_ICON = { 1:'🖱️', 2:'⌨️', 3:'🎮', 5:'🔋', 8:'🖥️' };
 
 export class BatteryWidget extends BaseWidget {
-    build() { this.actor.add_style_class_name('tahoe-battery'); this.showLoading(); this.startTimer(30_000, () => this._refresh()); }
+    build() {
+        this.actor.add_style_class_name('tahoe-battery');
+        this._batPath = null;
+        this._upowerIds = [];
+        this.showLoading();
+        this._refresh();
+        this.startTimer(30_000, () => this._refresh());
+        this._subscribeUPower();
+    }
+
+    /* ══ Real-time UPower listener ═════════════════════════════════ */
+
+    _subscribeUPower() {
+        try {
+            const id1 = Gio.DBus.system.signal_subscribe(
+                UPOWER_BUS, DEV_IFACE, 'PropertiesChanged',
+                null, null, Gio.DBusSignalFlags.NONE,
+                () => this._refresh());
+            if (id1 != null) this._upowerIds.push(id1);
+        } catch {}
+
+        // Re-enumerate when devices added/removed
+        try {
+            const id2 = Gio.DBus.system.signal_subscribe(
+                UPOWER_BUS, 'org.freedesktop.UPower', 'DeviceAdded',
+                null, null, Gio.DBusSignalFlags.NONE,
+                () => { this._batPath = null; this._refresh(); });
+            if (id2 != null) this._upowerIds.push(id2);
+        } catch {}
+
+        try {
+            const id3 = Gio.DBus.system.signal_subscribe(
+                UPOWER_BUS, 'org.freedesktop.UPower', 'DeviceRemoved',
+                null, null, Gio.DBusSignalFlags.NONE,
+                () => { this._batPath = null; this._refresh(); });
+            if (id3 != null) this._upowerIds.push(id3);
+        } catch {}
+    }
+
+    _cleanupUPower() {
+        this._upowerIds.forEach(id => {
+            try { Gio.DBus.system.signal_unsubscribe(id); } catch {}
+        });
+        this._upowerIds = [];
+    }
+
+    /* ══ Battery path detection ════════════════════════════════════ */
+
+    async _findBattery() {
+        if (this._batPath) return this._batPath;
+
+        // Try DisplayDevice first — fast, no extra round-trips
+        try {
+            const pct = await this._prop(DISP_PATH, 'Percentage');
+            if (pct != null) { this._batPath = DISP_PATH; return this._batPath; }
+        } catch {}
+
+        // Fall back to enumerating actual devices for the first internal battery
+        try {
+            const result = await this._dbusCall(
+                UPOWER_BUS, '/org/freedesktop/UPower',
+                'org.freedesktop.UPower', 'EnumerateDevices',
+                null, new GLib.VariantType('(ao)'));
+            const paths = result?.[0] ?? [];
+            for (const path of paths) {
+                try {
+                    const type = await this._prop(path, 'Type');
+                    if (type === 2) { this._batPath = path; return this._batPath; }
+                } catch {}
+            }
+        } catch {}
+
+        return null;
+    }
+
+    /* ══ Data refresh ══════════════════════════════════════════════ */
+
     async _refresh() {
         try {
-            const pct = await this._prop(DISP_PATH,'Percentage'), state = await this._prop(DISP_PATH,'State');
-            this._renderMain(Math.round(pct ?? 0), state ?? 2); await this._renderDevices();
-        } catch { this.showError('Battery info unavailable'); }
+            const path = await this._findBattery();
+            if (!path) { this.showError('No battery'); return; }
+
+            const [pct, state] = await Promise.all([
+                this._prop(path, 'Percentage').catch(() => null),
+                this._prop(path, 'State').catch(() => null),
+            ]);
+            if (pct == null) { this.showError('Battery info unavailable'); return; }
+
+            this._renderMain(Math.round(pct), state ?? 2);
+        } catch {
+            this.showError('Battery info unavailable');
+        }
     }
+
+    /* ══ UI ════════════════════════════════════════════════════════ */
+
     _renderMain(pct, state) {
         this._content.remove_all_children();
         this._content.add_child(new St.Label({ text: 'Battery', style_class: 'tahoe-label-caption', style: 'margin-bottom:8px;' }));
-        const charging = (state===1||state===6), full = (state===4);
+        const charging = state === 1, full = state === 4;
         const icon = full ? '⚡' : charging ? '⚡' : pct <= 20 ? '🪫' : '🔋';
         const topRow = new St.BoxLayout({ vertical: false, style: 'spacing:6px;' });
         topRow.add_child(new St.Label({ text: icon, style_class: 'tahoe-label-medium', y_align: Clutter.ActorAlign.CENTER }));
         topRow.add_child(new St.Label({ text: `${pct}%`, style_class: 'tahoe-battery-percent', y_align: Clutter.ActorAlign.CENTER }));
-        if (charging||full) topRow.add_child(new St.Label({ text: full?'Full':'Charging', style_class: 'tahoe-label-small tahoe-muted', y_align: Clutter.ActorAlign.CENTER }));
+        if (charging || full) topRow.add_child(new St.Label({ text: full ? 'Full' : 'Charging', style_class: 'tahoe-label-small tahoe-muted', y_align: Clutter.ActorAlign.CENTER }));
         this._content.add_child(topRow);
         const barBg = new St.Widget({ x_expand: true, style: 'background:rgba(255,255,255,0.14);border-radius:4px;height:6px;margin:6px 0;' });
-        const barColor = pct<=20?'rgba(255,80,80,0.9)':charging?'rgba(80,220,100,0.9)':'rgba(255,255,255,0.80)';
+        const barColor = pct <= 20 ? 'rgba(255,80,80,0.9)' : charging ? 'rgba(80,220,100,0.9)' : 'rgba(255,255,255,0.80)';
         barBg.add_child(new St.Widget({ style: `background:${barColor};border-radius:4px;height:6px;width:${pct}%;` }));
         this._content.add_child(barBg);
-        this._devSection = new St.BoxLayout({ vertical: true, style: 'spacing:4px; margin-top:6px;' });
-        this._content.add_child(this._devSection);
     }
-    async _renderDevices() {
-        if (!this._devSection) return;
-        this._devSection.remove_all_children();
-        try {
-            const result = await this._dbusCall(UPOWER_BUS,'/org/freedesktop/UPower','org.freedesktop.UPower','EnumerateDevices',null,new GLib.VariantType('(ao)'));
-            for (const path of (result?.[0] ?? [])) {
-                try {
-                    const type = await this._prop(path,'Type'), pct = await this._prop(path,'Percentage'), model = await this._prop(path,'Model');
-                    if (type===5||!pct) continue;
-                    const row = new St.BoxLayout({ vertical: false, style: 'spacing:8px;', x_expand: true });
-                    row.add_child(new St.Label({ text: DEVICE_ICON[type]??'🔌', style_class: 'tahoe-status-icon', y_align: Clutter.ActorAlign.CENTER }));
-                    row.add_child(new St.Label({ text: model||'Device', style_class: 'tahoe-status-text', x_expand: true, y_align: Clutter.ActorAlign.CENTER }));
-                    row.add_child(new St.Label({ text: `${Math.round(pct)}%`, style_class: 'tahoe-status-value', y_align: Clutter.ActorAlign.CENTER }));
-                    this._devSection.add_child(row);
-                } catch {}
-            }
-        } catch {}
-    }
+
+    /* ══ D-Bus helpers ═════════════════════════════════════════════ */
+
     _prop(path, prop) {
         return new Promise((resolve, reject) => {
-            Gio.DBus.system.call(UPOWER_BUS, path, PROP_IFACE, 'Get', new GLib.Variant('(ss)',[DEV_IFACE,prop]), new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 3000, null,
+            Gio.DBus.system.call(UPOWER_BUS, path, PROP_IFACE, 'Get', new GLib.Variant('(ss)',[DEV_IFACE,prop]), new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 5000, null,
                 (src, res) => { try { resolve(src.call_finish(res).get_child_value(0).unpack()); } catch(e) { reject(e); } });
         });
     }
-    _dbusCall(bus,path,iface,method,params,retType) {
+
+    _dbusCall(bus, path, iface, method, params, retType) {
         return new Promise((resolve, reject) => {
-            Gio.DBus.system.call(bus,path,iface,method,params,retType,Gio.DBusCallFlags.NONE,3000,null,
-                (src,res) => { try { resolve(src.call_finish(res).recursiveUnpack()); } catch(e) { reject(e); } });
+            Gio.DBus.system.call(bus, path, iface, method, params, retType, Gio.DBusCallFlags.NONE, 5000, null,
+                (src, res) => { try { resolve(src.call_finish(res).recursiveUnpack()); } catch(e) { reject(e); } });
         });
+    }
+
+    /* ══ Lifecycle ═════════════════════════════════════════════════ */
+
+    destroy() {
+        this._cleanupUPower();
+        super.destroy();
     }
 }
 

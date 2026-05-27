@@ -154,6 +154,13 @@ export class LayoutManager {
                 const clicked  = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, ex, ey);
                 if (!clicked || !actor.contains(clicked)) return Clutter.EVENT_PROPAGATE;
 
+                // Don't start drag when clicking interactive children (buttons, entries, etc.)
+                // so they can receive their native click events.
+                for (let t = clicked; t && t !== actor; t = t.get_parent()) {
+                    if (t instanceof St.Button || t instanceof St.Entry)
+                        return Clutter.EVENT_PROPAGATE;
+                }
+
                 // Cancel any pending auto-place so it doesn't jump the widget
                 // mid-drag (auto-place runs asynchronously via GLib.idle_add).
                 if (actor._tahoeAutoPlace) {

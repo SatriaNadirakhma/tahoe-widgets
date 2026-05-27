@@ -47,12 +47,20 @@ export class ClockWidget extends BaseWidget {
             reactive: false,
             x_expand: true,
             y_expand: true,
+            style: 'padding:0; margin:0;',
         });
         this._dial.connect('repaint', area => this._drawClock(area));
         this._content.add_child(this._dial);
 
         this._tick();
         this._timerId = this.startTimer(1000, () => this._tick(), false);
+
+        // Force a repaint after the widget gets its final allocation on stage
+        this._bootRepaint = GLib.idle_add(GLib.PRIORITY_LOW, () => {
+            this._tick();
+            return GLib.SOURCE_REMOVE;
+        });
+        this._timers.add(this._bootRepaint);
     }
 
     _tick() {
@@ -94,13 +102,15 @@ export class ClockWidget extends BaseWidget {
     /* ── Cairo analog clock ───────────────────────────────────────── */
 
     _drawClock(area) {
+        const w = area.get_width();
+        const h = area.get_height();
+        if (w <= 0 || h <= 0) return;
+
         const cr  = area.get_context();
-        const w   = area.get_width();
-        const h   = area.get_height();
-        const cx  = w / 2;
-        const cy  = h / 2;
-        // Leave a small inset so the face sits inside the rounded widget panel
-        const faceR = Math.min(w, h) / 2 - 8;
+        const size = Math.min(w, h);
+        const cx   = w / 2;
+        const cy   = h / 2;
+        const faceR = size / 2 - 8;
 
         const now = new Date();
         const sec = now.getSeconds();

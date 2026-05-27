@@ -45,6 +45,48 @@
     margin-bottom:    8px;
 }
 
+/* ── Background modes ────────────────────────────────────────────── */
+
+/* Transparent — default glassmorphism (no extra class, bg set via inline style) */
+
+.tahoe-bg-light {
+    background-color: rgba(248, 248, 250, 0.94);
+    border-color:     rgba(0, 0, 0, 0.12);
+}
+
+.tahoe-bg-dark {
+    background-color: rgba(28, 28, 32, 0.94);
+    border-color:     rgba(255, 255, 255, 0.12);
+}
+
+/* Light‑mode text colors — override the default white‑on‑glass for readability */
+.tahoe-bg-light .tahoe-label        { color: rgba(0, 0, 0, 0.88); }
+.tahoe-bg-light .tahoe-label-large  { color: rgba(0, 0, 0, 0.94); }
+.tahoe-bg-light .tahoe-label-medium { color: rgba(0, 0, 0, 0.84); }
+.tahoe-bg-light .tahoe-label-small  { color: rgba(0, 0, 0, 0.58); }
+.tahoe-bg-light .tahoe-label-caption { color: rgba(0, 0, 0, 0.38); }
+.tahoe-bg-light .tahoe-muted        { color: rgba(0, 0, 0, 0.44); }
+.tahoe-bg-light .tahoe-today-date   { color: rgba(0, 0, 0, 0.94); }
+.tahoe-bg-light .tahoe-cal-today {
+    background-color: rgba(0, 0, 0, 0.86);
+    color:            rgba(255, 255, 255, 0.95);
+}
+.tahoe-bg-light .tahoe-cal-day      { color: rgba(0, 0, 0, 0.72); }
+.tahoe-bg-light .tahoe-cal-day-label { color: rgba(0, 0, 0, 0.32); }
+.tahoe-bg-light .tahoe-calendar-header-small { color: rgba(0, 0, 0, 0.86); }
+.tahoe-bg-light .tahoe-cal-nav-small { color: rgba(0, 0, 0, 0.48); }
+.tahoe-bg-light .tahoe-cal-nav-small:hover { color: rgba(0, 0, 0, 0.86); }
+.tahoe-bg-light .tahoe-battery-percent { color: rgba(0, 0, 0, 0.92); }
+.tahoe-bg-light .tahoe-status-text  { color: rgba(0, 0, 0, 0.78); }
+.tahoe-bg-light .tahoe-status-value { color: rgba(0, 0, 0, 0.52); }
+.tahoe-bg-light .tahoe-cal-other    { color: rgba(0, 0, 0, 0.20); }
+.tahoe-bg-light .tahoe-drag-handle  { background-color: rgba(0, 0, 0, 0.15); }
+.tahoe-bg-light .tahoe-btn          { color: rgba(0, 0, 0, 0.82); background-color: rgba(0, 0, 0, 0.08); border-color: rgba(0, 0, 0, 0.16); }
+.tahoe-bg-light .tahoe-btn:hover    { background-color: rgba(0, 0, 0, 0.14); }
+
+/* Dark‑mode text — same as default, just ensure border shows */
+.tahoe-bg-dark .tahoe-drag-handle   { background-color: rgba(255, 255, 255, 0.30); }
+
 /* ── Typography ───────────────────────────────────────────────────── */
 
 /* "Inter" bisa dipakai di sini karena sudah didaftarkan lebih dulu
@@ -59,6 +101,14 @@
 .tahoe-label-large {
     font-family:    "Inter", "Cantarell", sans-serif;
     font-size:      52px;
+    font-weight:    100;
+    letter-spacing: -2px;
+    color:          rgba(255, 255, 255, 0.96);
+}
+
+.tahoe-today-date {
+    font-family:    "Inter", "Cantarell", sans-serif;
+    font-size:      60px;
     font-weight:    100;
     letter-spacing: -2px;
     color:          rgba(255, 255, 255, 0.96);
@@ -182,50 +232,69 @@
 .tahoe-forecast-icon { font-size: 15px; }
 .tahoe-forecast-temp { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.82); }
 
-/* ── Calendar widget ──────────────────────────────────────────────── */
+/* ── Calendar widget — 1×1 Small (155×155 — matches Clock) ──────────── */
 
-.tahoe-calendar  { min-width: 270px; }
-
-.tahoe-calendar-header {
-    font-family: "Inter", "Cantarell", sans-serif;
-    font-size:   15px;
-    font-weight: 600;
-    color:       rgba(255, 255, 255, 0.90);
+.tahoe-calendar-small {
+    padding: 0;
+    min-width:  155px;
+    min-height: 155px;
+    max-width:  155px;
+    max-height: 155px;
 }
 
-.tahoe-cal-nav {
+.tahoe-calendar-header-small {
+    font-family: "Inter", "Cantarell", sans-serif;
+    font-size:   11px;
+    font-weight: 600;
+    color:       rgba(255, 255, 255, 0.88);
+}
+
+.tahoe-cal-nav-small {
     background:    transparent;
     border:        none;
-    color:         rgba(255, 255, 255, 0.60);
-    font-size:     18px;
-    padding:       0 6px;
-    border-radius: 6px;
+    color:         rgba(255, 255, 255, 0.50);
+    font-size:     14px;
+    padding:       0 4px;
+    border-radius: 4px;
 }
 
-.tahoe-cal-nav:hover {
+.tahoe-cal-nav-small:hover {
     background: rgba(255,255,255,0.10);
-    color:      rgba(255,255,255,0.90);
+    color:      rgba(255,255,255,0.88);
 }
 
-.tahoe-cal-day-label {
+.tahoe-cal-day-label-small {
     font-family:     "Inter", "Cantarell", sans-serif;
-    font-size:       10px;
+    font-size:       8px;
     font-weight:     600;
-    letter-spacing:  0.4px;
+    letter-spacing:  0.2px;
     text-transform:  uppercase;
-    color:           rgba(255, 255, 255, 0.38);
-    min-width:       30px;
-    min-height:      22px;
+    color:           rgba(255, 255, 255, 0.32);
+    min-width:       18px;
+    min-height:      14px;
 }
 
-.tahoe-cal-day {
+.tahoe-cal-day-small {
     font-family:  "Inter", "Cantarell", sans-serif;
-    font-size:    13px;
-    color:        rgba(255, 255, 255, 0.75);
-    min-width:    30px;
-    min-height:   26px;
-    border-radius: 13px;
+    font-size:    10px;
+    color:        rgba(255, 255, 255, 0.72);
+    min-width:    20px;
+    min-height:   20px;
+    border-radius: 10px;
+    padding: 0;
 }
+
+/* ── Calendar widget — 2×1 Double (329×220) ────────────────────────── */
+
+.tahoe-calendar-double {
+    padding: 0;
+    min-width:  329px;
+    min-height: 220px;
+    max-width:  329px;
+    max-height: 220px;
+}
+
+/* ── Shared today / other-month styles (reuse across variants) ─────── */
 
 .tahoe-cal-today {
     background-color: rgba(255, 255, 255, 0.90);

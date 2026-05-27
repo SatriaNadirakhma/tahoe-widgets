@@ -19,6 +19,12 @@ import { Logger }     from '../utils/logger.js';
 export const WIDGET_SMALL  = { width: 155, height: 155 };
 export const WIDGET_MEDIUM = { width: 329, height: 155 };
 
+// Calendar-specific sizes
+// Small  — matches Clock widget (1×1 = 155×155)
+// Medium — wide horizontal layout with room for mini calendar (329×220)
+export const CALENDAR_SMALL  = { width: 155, height: 155 };
+export const CALENDAR_MEDIUM = { width: 329, height: 220 };
+
 export class BaseWidget {
     constructor({ id, state, registry, data }) {
         this.id        = id;
@@ -62,9 +68,10 @@ export class BaseWidget {
 
         // ── Re-style on settings change ────────────────────────────
         this._unsubs.push(
-            state.subscribe('settings:panel-opacity', () => this._applyPanelStyle()),
-            state.subscribe('settings:corner-radius', () => this._applyPanelStyle()),
-            state.subscribe('settings:blur-radius',   () => this._applyBlur()),
+            state.subscribe('settings:panel-opacity',  () => this._applyPanelStyle()),
+            state.subscribe('settings:corner-radius',  () => this._applyPanelStyle()),
+            state.subscribe('settings:blur-radius',    () => this._applyBlur()),
+            state.subscribe('settings:background-mode',() => { this._applyPanelStyle(); this._applyBlur(); }),
         );
 
         // ── Let subclass build its UI ──────────────────────────────
@@ -164,15 +171,30 @@ export class BaseWidget {
     /* ══ Visual styling ═══════════════════════════════════════════════ */
 
     _applyPanelStyle() {
-        const opacity = this._state.panelOpacity ?? 0.10;
-        const radius  = this._state.cornerRadius ?? 20;
-        this.actor.style =
-            `background-color: rgba(255,255,255,${opacity});` +
-            `border-radius: ${radius}px;`;
+        const mode   = this._state.backgroundMode ?? 'transparent';
+        const radius = this._state.cornerRadius ?? 20;
+
+        this.actor.remove_style_class_name('tahoe-bg-light');
+        this.actor.remove_style_class_name('tahoe-bg-dark');
+
+        if (mode === 'light') {
+            this.actor.add_style_class_name('tahoe-bg-light');
+            this.actor.style = `border-radius: ${radius}px;`;
+        } else if (mode === 'dark') {
+            this.actor.add_style_class_name('tahoe-bg-dark');
+            this.actor.style = `border-radius: ${radius}px;`;
+        } else {
+            const opacity = this._state.panelOpacity ?? 0.10;
+            this.actor.style =
+                `background-color: rgba(255,255,255,${opacity});` +
+                `border-radius: ${radius}px;`;
+        }
     }
 
     _applyBlur() {
         try { this.actor.remove_effect_by_name('blur'); } catch {}
+        const mode = this._state.backgroundMode ?? 'transparent';
+        if (mode !== 'transparent') return;
         const sigma = this._state.blurRadius ?? 20;
         if (sigma <= 0) return;
         try {

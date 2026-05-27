@@ -25,7 +25,7 @@ import { TahoePanelButton } from './src/ui/panelButton.js';
 
 import { ClockWidget }    from './src/widgets/clockWidget.js';
 import { WeatherWidget }  from './src/widgets/weatherWidget.js';
-import { CalendarWidget } from './src/widgets/calendarWidget.js';
+import { CalendarWidget, CalendarDoubleWidget } from './src/widgets/calendarWidget.js';
 import {
     WorldClockWidget,
     BatteryWidget,
@@ -33,12 +33,13 @@ import {
 } from './src/widgets/otherWidgets.js';
 
 const WIDGET_CATALOG = [
-    { id: 'clock',       label: 'Clock',        description: 'Live digital clock',       icon: '🕐', Cls: ClockWidget       },
-    { id: 'weather',     label: 'Weather',       description: 'Conditions + 6hr forecast', icon: '🌤️', Cls: WeatherWidget    },
-    { id: 'calendar',    label: 'Calendar',      description: 'Monthly mini-calendar',    icon: '📅', Cls: CalendarWidget    },
-    { id: 'worldClock',  label: 'World Clock',   description: 'Multi-timezone display',   icon: '🌍', Cls: WorldClockWidget  },
-    { id: 'battery',     label: 'Battery',       description: 'Battery + devices',        icon: '🔋', Cls: BatteryWidget     },
-    { id: 'quickStatus', label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',          icon: '📊', Cls: QuickStatusWidget },
+    { id: 'clock',          label: 'Clock',         description: 'Analog clock face',           icon: '🕐', Cls: ClockWidget       },
+    { id: 'weather',        label: 'Weather',       description: 'Conditions + 6hr forecast',   icon: '🌤️', Cls: WeatherWidget    },
+    { id: 'calendar',       label: 'Calendar',      description: 'Today: date, day & month (1×1)',  icon: '📅', Cls: CalendarWidget    },
+    { id: 'calendar-double',label: 'Calendar 2×',   description: 'Today + mini calendar (2×1)',       icon: '📆', Cls: CalendarDoubleWidget },
+    { id: 'worldClock',     label: 'World Clock',   description: 'Multi-timezone display',      icon: '🌍', Cls: WorldClockWidget  },
+    { id: 'battery',        label: 'Battery',       description: 'Battery + devices',           icon: '🔋', Cls: BatteryWidget     },
+    { id: 'quickStatus',    label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',             icon: '📊', Cls: QuickStatusWidget },
 ];
 
 export default class TahoeWidgetsExtension extends Extension {

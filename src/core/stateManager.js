@@ -76,6 +76,7 @@ export class StateManager {
     get cornerRadius()    { return this._s.get_int('corner-radius');          }
     get widgetSpacing()   { return this._s.get_int('widget-spacing');         }
     get colorScheme()     { return this._s.get_string('color-scheme');        }
+    get backgroundMode()  { return this._s.get_string('background-mode');     }
     get snapToGrid()      { return this._s.get_boolean('snap-to-grid');       }
     get gridSize()        { return this._s.get_int('grid-size');              }
     get topBarMargin()    { return this._s.get_int('top-bar-margin');         }
@@ -93,6 +94,7 @@ export class StateManager {
     set cornerRadius(v)    { this._s.set_int('corner-radius', v);            }
     set widgetSpacing(v)   { this._s.set_int('widget-spacing', v);           }
     set colorScheme(v)     { this._s.set_string('color-scheme', v);          }
+    set backgroundMode(v)  { this._s.set_string('background-mode', v);       }
     set snapToGrid(v)      { this._s.set_boolean('snap-to-grid', v);         }
     set gridSize(v)        { this._s.set_int('grid-size', v);                }
     set clockFormat(v)     { this._s.set_string('clock-format', v);          }
@@ -109,7 +111,7 @@ export class StateManager {
         this._log.info('Resetting all settings to defaults');
         [
             'blur-radius','panel-opacity','corner-radius','widget-spacing',
-            'color-scheme','snap-to-grid','grid-size','top-bar-margin','dock-margin',
+            'color-scheme','background-mode','snap-to-grid','grid-size','top-bar-margin','dock-margin',
             'clock-format','clock-show-seconds','weather-location','weather-unit',
             'weather-refresh-minutes','world-clock-zones','active-widgets',
             'widget-states','first-run',
