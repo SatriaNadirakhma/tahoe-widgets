@@ -4,7 +4,7 @@
   "uuid": "tahoe-widgets@gnome",
   "version": 3,
   "shell-version": ["45", "46", "47", "48", "49", "50"],
-  "url": "https://github.com/yourname/tahoe-widgets",
+  "url": "https://github.com/SatriaNadirakhma/tahoe-widgets",
   "settings-schema": "org.gnome.shell.extensions.tahoe-widgets",
   "gettext-domain": "tahoe-widgets"
 }
