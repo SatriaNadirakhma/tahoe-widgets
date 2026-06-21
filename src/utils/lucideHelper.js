@@ -8,11 +8,18 @@ export function setExtensionPath(path) {
     _extensionPath = path;
 }
 
-export function getLucideIcon(name, size) {
-    const filePath = GLib.build_filenamev([
+export function getExtensionPath() {
+    return _extensionPath;
+}
+
+export function getLucideIconPath(name) {
+    return GLib.build_filenamev([
         _extensionPath, 'icons', 'lucide', `${name}.svg`,
     ]);
-    const file  = Gio.File.new_for_path(filePath);
+}
+
+export function getLucideIcon(name, size) {
+    const file  = Gio.File.new_for_path(getLucideIconPath(name));
     const gicon = new Gio.FileIcon({ file });
     return new St.Icon({ gicon, icon_size: size ?? 24 });
 }

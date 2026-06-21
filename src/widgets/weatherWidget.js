@@ -3,7 +3,7 @@ import Clutter from 'gi://Clutter';
 import { BaseWidget } from './baseWidget.js';
 import { getLucideIcon } from '../utils/lucideHelper.js';
 
-const WMO_LUCIDE = {
+const WMO_ICON_MAP = {
     0:  { icon: 'sun',             color: '#FACC15' },
     1:  { icon: 'sun',             color: '#FACC15' },
     2:  { icon: 'cloud-sun',       color: '#FCD34D' },
@@ -45,7 +45,7 @@ export class WeatherWidget extends BaseWidget {
         );
     }
     _weatherMeta(wmoCode) {
-        return WMO_LUCIDE[wmoCode] ?? { icon: 'cloud', color: '#94A3B8' };
+        return WMO_ICON_MAP[wmoCode] ?? { icon: 'cloud', color: '#94A3B8' };
     }
     _onWeatherUpdate({ status, data, message }) {
         if (status === 'ok') this._render(data); else this._renderError(message);

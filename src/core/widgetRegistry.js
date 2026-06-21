@@ -30,7 +30,7 @@ export class WidgetRegistry {
 
     /* ══ Instances ════════════════════════════════════════════════════ */
 
-    instantiate(id, opts = {}) {
+    instantiate(id, options = {}) {
         if (this._instances.has(id))
             throw new Error(`Widget '${id}' is already active`);
 
@@ -39,9 +39,9 @@ export class WidgetRegistry {
 
         this._log.info(`Instantiating: ${id}`);
 
-        const widget = new desc.Cls({
+        const widget = new desc.Class({
             ...(desc.defaults ?? {}),
-            ...opts,
+            ...options,
             id,
             state:    this._state,
             registry: this,
@@ -70,13 +70,11 @@ export class WidgetRegistry {
         try {
             this._log.info(`Destroying: ${id} (silent=${silent})`);
             widget.destroy();
-            this._instances.delete(id);
-            // silent=true → called from disable/suspend, do NOT touch GSettings
-            // so active-widgets list is preserved for next enable() call.
             if (!silent) this._state.removeActiveWidget(id);
         } catch (e) {
             this._log.error(`destroyWidget error for '${id}':`, e.message);
         } finally {
+            this._instances.delete(id);
             this._destroying.delete(id);
         }
     }

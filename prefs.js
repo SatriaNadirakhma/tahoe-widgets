@@ -11,9 +11,11 @@ import Gio  from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { ExtensionPreferences } from
     'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { getLucideIconPath, setExtensionPath } from './src/utils/lucideHelper.js';
 
 export default class TahoePreferences extends ExtensionPreferences {
     fillPreferencesWindow(win) {
+        setExtensionPath(this.dir.get_path());
         const s = this.getSettings();
         win.set_default_size(680, 760);
         win.set_title('Tahoe Widgets');
@@ -146,9 +148,7 @@ export default class TahoePreferences extends ExtensionPreferences {
             row.set_subtitle(desc);
 
             const prefixImg = new Gtk.Image({
-                file: Gio.File.new_for_path(
-                    GLib.build_filenamev([this.dir.get_path(), 'icons', 'lucide', `${icon}.svg`])
-                ),
+                file: Gio.File.new_for_path(getLucideIconPath(icon)),
                 pixel_size: 24,
                 margin_end: 8,
                 valign: Gtk.Align.CENTER,

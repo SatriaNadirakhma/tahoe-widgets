@@ -232,7 +232,7 @@
 .tahoe-weather-hi-lo { font-size: 12px; color: rgba(255,255,255,0.50); }
 
 .tahoe-forecast-hour { font-size: 11px; color: rgba(255,255,255,0.48); }
-.tahoe-forecast-icon { font-size: 15px; }
+.tahoe-forecast-icon { }
 .tahoe-forecast-temp { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.82); }
 .tahoe-weather-separator { height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0; }
 
@@ -323,9 +323,19 @@
 /* Size is set on .tahoe-world-clock above.
    Text labels are drawn by Cairo/Pango — no CSS rules needed here. */
 
-/* ── Battery widget ───────────────────────────────────────────────── */
+.tahoe-battery-bar {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+    height: 6px;
+    margin: 6px 0;
+}
+.tahoe-battery-bar-fill       { background: rgba(255, 255, 255, 0.80); border-radius: 4px; height: 6px; }
+.tahoe-battery-bar-fill-low   { background: rgba(255, 80, 80, 0.90);   border-radius: 4px; height: 6px; }
+.tahoe-battery-bar-fill-charging { background: rgba(80, 220, 100, 0.90); border-radius: 4px; height: 6px; }
 
-.tahoe-battery       { min-width: 190px; }
+/* ── Battery bar light‑mode overrides ── */
+.tahoe-bg-light .tahoe-battery-bar         { background: rgba(0, 0, 0, 0.08); }
+.tahoe-bg-light .tahoe-battery-bar-fill    { background: rgba(0, 0, 0, 0.60); }
 .tahoe-battery-percent {
     font-family:    "Inter", "Cantarell", sans-serif;
     font-size:      30px;
@@ -354,10 +364,20 @@
 
 .tahoe-picker-card {
     transition-duration: 120ms;
+    spacing: 12px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    margin-bottom: 4px;
+}
+
+.tahoe-picker-card.active {
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .tahoe-picker-card:hover {
     background: rgba(255,255,255,0.14) !important;
 }
 
-.tahoe-picker-icon { min-width: 36px; }
+.tahoe-picker-icon { min-width: 36px; color: rgba(255, 255, 255, 0.88); }

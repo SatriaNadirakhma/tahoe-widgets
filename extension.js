@@ -34,13 +34,13 @@ import {
 } from './src/widgets/otherWidgets.js';
 
 const WIDGET_CATALOG = [
-    { id: 'clock',          label: 'Clock',         description: 'Analog clock face',           icon: 'clock',         Cls: ClockWidget       },
-    { id: 'weather',        label: 'Weather',       description: 'Conditions + 6hr forecast',   icon: 'cloud-sun',     Cls: WeatherWidget    },
-    { id: 'calendar',       label: 'Calendar',      description: 'Today: date, day & month (1x1)',  icon: 'calendar',  Cls: CalendarWidget    },
-    { id: 'calendar-double',label: 'Calendar 2x',   description: 'Today + mini calendar (2x1)',       icon: 'calendar-days', Cls: CalendarDoubleWidget },
-    { id: 'worldClock',     label: 'World Clock',   description: 'Multi-timezone display',      icon: 'globe',         Cls: WorldClockWidget  },
-    { id: 'battery',        label: 'Battery',       description: 'Battery + devices',           icon: 'battery-full',  Cls: BatteryWidget     },
-    { id: 'quickStatus',    label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',             icon: 'bar-chart-3',   Cls: QuickStatusWidget },
+    { id: 'clock',          label: 'Clock',         description: 'Analog clock face',           icon: 'clock',         Class: ClockWidget       },
+    { id: 'weather',        label: 'Weather',       description: 'Conditions + 6hr forecast',   icon: 'cloud-sun',     Class: WeatherWidget    },
+    { id: 'calendar',       label: 'Calendar',      description: 'Today: date, day & month (1x1)',  icon: 'calendar',  Class: CalendarWidget    },
+    { id: 'calendar-double',label: 'Calendar 2x',   description: 'Today + mini calendar (2x1)',       icon: 'calendar-days', Class: CalendarDoubleWidget },
+    { id: 'worldClock',     label: 'World Clock',   description: 'Multi-timezone display',      icon: 'globe',         Class: WorldClockWidget  },
+    { id: 'battery',        label: 'Battery',       description: 'Battery + devices',           icon: 'battery-full',  Class: BatteryWidget     },
+    { id: 'quickStatus',    label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',             icon: 'bar-chart-3',   Class: QuickStatusWidget },
 ];
 
 export default class TahoeWidgetsExtension extends Extension {

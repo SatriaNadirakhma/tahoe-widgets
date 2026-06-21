@@ -197,9 +197,25 @@ export class BaseWidget {
     }
 
     _resolveSystemColorScheme() {
+        if (!this._systemSettings) {
+            try {
+                this._systemSettings = new Gio.Settings({
+                    schema_id: 'org.gnome.desktop.interface',
+                });
+                this._systemSettingsId = this._systemSettings.connect(
+                    'changed::color-scheme', () => {
+                        if (this._state.backgroundMode === 'auto')
+                            this._applyPanelStyle();
+                    }
+                );
+            } catch {
+                this._systemSettings = null;
+                this._systemSettingsId = null;
+            }
+        }
+        if (!this._systemSettings) return 'light';
         try {
-            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
-            const scheme = iface.get_string('color-scheme');
+            const scheme = this._systemSettings.get_string('color-scheme');
             return scheme === 'prefer-dark' ? 'dark' : 'light';
         } catch {
             return 'light';
@@ -207,8 +223,11 @@ export class BaseWidget {
     }
 
     _applyBlur() {
-        try { this.actor.remove_effect_by_name('blur'); } catch {}
-        const mode = this._state.backgroundMode ?? 'transparent';
+        this.actor.remove_effect_by_name('blur');
+        let mode = this._state.backgroundMode ?? 'transparent';
+        if (mode === 'auto') {
+            mode = this._resolveSystemColorScheme();
+        }
         if (mode !== 'transparent') return;
         const sigma = this._state.blurRadius ?? 20;
         if (sigma <= 0) return;
@@ -226,6 +245,11 @@ export class BaseWidget {
         this._timers.clear();
         this._unsubs.forEach(fn => { try { fn(); } catch {} });
         this._unsubs = [];
+        if (this._systemSettingsId && this._systemSettings) {
+            try { this._systemSettings.disconnect(this._systemSettingsId); } catch {}
+            this._systemSettingsId = null;
+            this._systemSettings = null;
+        }
         try {
             if (this._menu) {
                 Main.uiGroup.remove_child(this._menu.actor);

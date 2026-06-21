@@ -119,15 +119,16 @@ export function unregisterFonts() {
  * @returns {string | null}  — null jika file tidak ditemukan
  */
 function _buildFontFaceCSS(fontsDir) {
-    const fontPath = `${fontsDir}/Inter.ttf`;
-
+    let fontPath = `${fontsDir}/Inter.ttf`;
     if (!Gio.File.new_for_path(fontPath).query_exists(null)) {
-        console.warn(
-            '[TahoeWidgets] fontLoader: Inter.ttf tidak ditemukan di', fontsDir,
-            '— pastikan sudah copy Inter-VariableFont_opsz,wght.ttf dari Google Fonts',
-            'ke fonts/Inter.ttf'
-        );
-        return null;
+        fontPath = `${fontsDir}/Inter-VariableFont_opsz,wght.ttf`;
+        if (!Gio.File.new_for_path(fontPath).query_exists(null)) {
+            console.warn(
+                '[TahoeWidgets] fontLoader: Inter font tidak ditemukan di', fontsDir,
+                '— pastikan Inter.ttf atau Inter-VariableFont_opsz,wght.ttf tersedia'
+            );
+            return null;
+        }
     }
 
     // font-weight: 100 900  →  satu @font-face untuk semua weight

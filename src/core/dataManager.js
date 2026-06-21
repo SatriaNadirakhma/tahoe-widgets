@@ -166,6 +166,11 @@ export class DataManager {
                 const msg = Soup.Message.new('GET', url);
                 this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null, (sess, res) => {
                     try {
+                        const status = msg.get_status();
+                        if (status !== 200) {
+                            reject(new Error(`HTTP ${status} for ${url}`));
+                            return;
+                        }
                         const bytes = sess.send_and_read_finish(res);
                         resolve(JSON.parse(new TextDecoder().decode(bytes.get_data())));
                     } catch (e) { reject(e); }

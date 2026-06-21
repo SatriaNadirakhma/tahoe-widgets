@@ -98,11 +98,14 @@ export class WidgetPicker {
         catalog.forEach(desc => this._list.add_child(this._makeCard(desc, this._registry.isActive(desc.id))));
     }
     _makeCard(desc, isActive) {
-        const card = new St.BoxLayout({ vertical: false,
-            style: `spacing:12px; padding:12px; border-radius:14px; background: rgba(255,255,255,${isActive ? '0.18' : '0.08'}); border: 1px solid rgba(255,255,255,0.14); margin-bottom:4px;`,
-            reactive: true });
+        const card = new St.BoxLayout({
+            vertical: false,
+            style_class: 'tahoe-picker-card',
+            reactive: true,
+        });
+        if (isActive) card.add_style_class_name('active');
         const catIcon = getLucideIcon(desc.icon ?? 'cloud', 28);
-        catIcon.style = 'min-width:36px; color: rgba(255,255,255,0.88);';
+        catIcon.add_style_class_name('tahoe-picker-icon');
         card.add_child(catIcon);
         const textCol = new St.BoxLayout({ vertical: true, x_expand: true,
             y_align: Clutter.ActorAlign.CENTER, style: 'spacing:2px;' });

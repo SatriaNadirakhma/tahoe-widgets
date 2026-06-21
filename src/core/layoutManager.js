@@ -90,7 +90,7 @@ export class LayoutManager {
             }
             // Disconnect stage listeners if this widget is mid-drag
             entry.actor._tahoeStageDrag?.();
-            entry.actor.remove_all_transitions();
+            try { entry.actor.remove_all_transitions(); } catch {}
             this.canvas.remove_child(entry.actor);
         } catch (e) {
             this._log.warn(`removeWidget error for ${id}:`, e.message);

@@ -244,7 +244,6 @@ const UPOWER_BUS = 'org.freedesktop.UPower';
 const DISP_PATH  = '/org/freedesktop/UPower/devices/DisplayDevice';
 const DEV_IFACE  = 'org.freedesktop.UPower.Device';
 const PROP_IFACE = 'org.freedesktop.DBus.Properties';
-const DEVICE_ICON = { 1:'mouse', 2:'keyboard', 3:'gamepad-2', 5:'battery-full', 8:'monitor' };
 
 export class BatteryWidget extends BaseWidget {
     build() {
@@ -357,9 +356,11 @@ export class BatteryWidget extends BaseWidget {
         topRow.add_child(new St.Label({ text: `${pct}%`, style_class: 'tahoe-battery-percent', y_align: Clutter.ActorAlign.CENTER }));
         if (charging || full) topRow.add_child(new St.Label({ text: full ? 'Full' : 'Charging', style_class: 'tahoe-label-small tahoe-muted', y_align: Clutter.ActorAlign.CENTER }));
         this._content.add_child(topRow);
-        const barBg = new St.Widget({ x_expand: true, style: 'background:rgba(255,255,255,0.14);border-radius:4px;height:6px;margin:6px 0;' });
-        const barColor = pct <= 20 ? 'rgba(255,80,80,0.9)' : charging ? 'rgba(80,220,100,0.9)' : 'rgba(255,255,255,0.80)';
-        barBg.add_child(new St.Widget({ style: `background:${barColor};border-radius:4px;height:6px;width:${pct}%;` }));
+        const barBg = new St.Widget({ style_class: 'tahoe-battery-bar', x_expand: true });
+        const barClass = pct <= 20 ? 'tahoe-battery-bar-fill-low'
+            : charging ? 'tahoe-battery-bar-fill-charging'
+            : 'tahoe-battery-bar-fill';
+        barBg.add_child(new St.Widget({ style_class: barClass, style: `width:${pct}%;` }));
         this._content.add_child(barBg);
     }
 

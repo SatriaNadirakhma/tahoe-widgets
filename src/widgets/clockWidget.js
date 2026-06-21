@@ -25,6 +25,7 @@ import Pango      from 'gi://Pango';
 import PangoCairo from 'gi://PangoCairo';
 import Gio        from 'gi://Gio';
 import { BaseWidget, WIDGET_SMALL } from './baseWidget.js';
+import { getExtensionPath } from '../utils/lucideHelper.js';
 
 const LINE_CAP_ROUND = 1;
 
@@ -32,8 +33,6 @@ export class ClockWidget extends BaseWidget {
 
     constructor(options) {
         super(options);
-        // extensionPath dipakai untuk mencari file font di folder fonts/
-        this._extensionPath = options.extensionPath ?? null;
     }
 
     build() {
@@ -79,10 +78,10 @@ export class ClockWidget extends BaseWidget {
      * @returns {Pango.FontDescription}
      */
     _getFontDesc(spec) {
-        // Cek apakah Inter sudah tersedia (ada file-nya di folder proyek)
-        if (this._extensionPath) {
+        const extPath = getExtensionPath();
+        if (extPath) {
             const probe = Gio.File.new_for_path(
-                `${this._extensionPath}/fonts/Inter-Regular.ttf`
+                `${extPath}/fonts/Inter-VariableFont_opsz,wght.ttf`
             );
             if (probe.query_exists(null)) {
                 return Pango.FontDescription.from_string(`Inter ${spec}`);
