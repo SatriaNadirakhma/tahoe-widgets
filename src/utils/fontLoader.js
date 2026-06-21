@@ -79,7 +79,6 @@ export function registerFonts(extensionPath) {
             .get_theme();
 
         theme.load_stylesheet(_loadedStylesheet);
-        console.log('[TahoeWidgets] fontLoader: Inter (variable font) berhasil didaftarkan dari', fontsDir);
     } catch (e) {
         console.warn('[TahoeWidgets] fontLoader: gagal load stylesheet —', e.message);
         _loadedStylesheet = null;
@@ -103,7 +102,6 @@ export function unregisterFonts() {
     // Hapus file /tmp
     try { _loadedStylesheet.delete(null); } catch {}
     _loadedStylesheet = null;
-    console.log('[TahoeWidgets] fontLoader: stylesheet dihapus');
 }
 
 /* ── Internal ─────────────────────────────────────────────────────────── */

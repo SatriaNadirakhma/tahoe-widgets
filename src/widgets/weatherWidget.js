@@ -1,7 +1,7 @@
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import { BaseWidget } from './baseWidget.js';
-import { getLucideIcon } from '../utils/lucideHelper.js';
+import { getLucideIcon } from '../utils/lucideIcon.js';
 
 const WMO_ICON_MAP = {
     0:  { icon: 'sun',             color: '#FACC15' },

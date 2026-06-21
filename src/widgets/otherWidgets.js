@@ -16,7 +16,7 @@ import GLib       from 'gi://GLib';
 import Pango      from 'gi://Pango';
 import PangoCairo from 'gi://PangoCairo';
 import { BaseWidget, WIDGET_MEDIUM } from './baseWidget.js';
-import { getLucideIcon } from '../utils/lucideHelper.js';
+import { getLucideIcon } from '../utils/lucideIcon.js';
 
 const LINE_CAP_ROUND = 1;
 

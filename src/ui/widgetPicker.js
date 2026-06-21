@@ -2,7 +2,7 @@ import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Logger } from '../utils/logger.js';
-import { getLucideIcon } from '../utils/lucideHelper.js';
+import { getLucideIcon } from '../utils/lucideIcon.js';
 
 export class WidgetPicker {
     constructor(registry, state) {

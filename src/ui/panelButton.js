@@ -12,7 +12,7 @@ import * as Main        from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu   from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu   from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Logger }       from '../utils/logger.js';
-import { getLucideIcon } from '../utils/lucideHelper.js';
+import { getLucideIcon } from '../utils/lucideIcon.js';
 
 export const TahoePanelButton = GObject.registerClass(
 class TahoePanelButton extends PanelMenu.Button {
