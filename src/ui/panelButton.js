@@ -12,6 +12,7 @@ import * as Main        from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu   from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu   from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Logger }       from '../utils/logger.js';
+import { getLucideIcon } from '../utils/lucideHelper.js';
 
 export const TahoePanelButton = GObject.registerClass(
 class TahoePanelButton extends PanelMenu.Button {
@@ -29,10 +30,9 @@ class TahoePanelButton extends PanelMenu.Button {
         const box = new St.BoxLayout({
             y_align: Clutter.ActorAlign.CENTER,
         });
-        box.add_child(new St.Label({
-            text:    '🌊',
-            y_align: Clutter.ActorAlign.CENTER,
-        }));
+        const icon = getLucideIcon('waves', 18);
+        icon.style = 'margin-right:4px;';
+        box.add_child(icon);
         this.add_child(box);
 
         // ── Left click → toggle picker ────────────────────────────

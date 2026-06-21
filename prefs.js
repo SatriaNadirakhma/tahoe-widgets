@@ -41,12 +41,9 @@ export default class TahoePreferences extends ExtensionPreferences {
         const cg = this._group('Color Scheme');
         cg.add(this._comboRow(s, 'background-mode', 'Background Style',
             [{ value: 'transparent', label: 'Transparent (glassmorphism)' },
+             { value: 'auto',        label: 'Follow Device Style' },
              { value: 'light',       label: 'Light surface' },
              { value: 'dark',        label: 'Dark surface'  }]));
-        cg.add(this._comboRow(s, 'color-scheme', 'Theme',
-            [{ value: 'auto',  label: 'Automatic (follow shell)' },
-             { value: 'light', label: 'Light' },
-             { value: 'dark',  label: 'Dark'  }]));
         page.add(cg);
         return page;
     }
@@ -130,24 +127,33 @@ export default class TahoePreferences extends ExtensionPreferences {
         const page = this._page('Widgets', 'view-app-grid-symbolic');
 
         const all = [
-            { id: 'clock',          icon: '🕐', label: 'Clock',         desc: 'Analog clock face'        },
-            { id: 'weather',        icon: '🌤️', label: 'Weather',        desc: 'Conditions + forecast'    },
-            { id: 'calendar',       icon: '📅', label: 'Calendar',       desc: 'Today: date, day & month'   },
-            { id: 'calendar-double',icon: '📆', label: 'Calendar 2×',    desc: 'Today + mini calendar'       },
-            { id: 'worldClock',     icon: '🌍', label: 'World Clock',    desc: 'Multi-timezone display'   },
-            { id: 'battery',        icon: '🔋', label: 'Battery',        desc: 'Battery + devices'        },
-            { id: 'quickStatus',    icon: '📊', label: 'Quick Status',   desc: 'Wi-Fi, CPU, RAM'          },
+            { id: 'clock',          icon: 'clock',        label: 'Clock',         desc: 'Analog clock face'        },
+            { id: 'weather',        icon: 'cloud-sun',    label: 'Weather',        desc: 'Conditions + forecast'    },
+            { id: 'calendar',       icon: 'calendar',     label: 'Calendar',       desc: 'Today: date, day & month'   },
+            { id: 'calendar-double',icon: 'calendar-days',label: 'Calendar 2x',    desc: 'Today + mini calendar'       },
+            { id: 'worldClock',     icon: 'globe',        label: 'World Clock',    desc: 'Multi-timezone display'   },
+            { id: 'battery',        icon: 'battery-full', label: 'Battery',        desc: 'Battery + devices'        },
+            { id: 'quickStatus',    icon: 'bar-chart-3',  label: 'Quick Status',   desc: 'Wi-Fi, CPU, RAM'          },
         ];
 
         const wg = this._group('Enable / Disable');
-        // ✅ FIXED: was "Changes apply after toggling the extension" — wrong!
         wg.set_description('Widgets appear and disappear immediately on the desktop');
 
         all.forEach(({ id, icon, label, desc }) => {
             const active = s.get_strv('active-widgets').includes(id);
             const row    = new Adw.ActionRow();
-            row.set_title(`${icon}  ${label}`);
+            row.set_title(label);
             row.set_subtitle(desc);
+
+            const prefixImg = new Gtk.Image({
+                file: Gio.File.new_for_path(
+                    GLib.build_filenamev([this.dir.get_path(), 'icons', 'lucide', `${icon}.svg`])
+                ),
+                pixel_size: 24,
+                margin_end: 8,
+                valign: Gtk.Align.CENTER,
+            });
+            row.add_prefix(prefixImg);
 
             const sw = new Gtk.Switch({ valign: Gtk.Align.CENTER });
             sw.set_active(active);

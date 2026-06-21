@@ -54,13 +54,6 @@ export class ClockWidget extends BaseWidget {
 
         this._tick();
         this._timerId = this.startTimer(1000, () => this._tick(), false);
-
-        // Force a repaint after the widget gets its final allocation on stage
-        this._bootRepaint = GLib.idle_add(GLib.PRIORITY_LOW, () => {
-            this._tick();
-            return GLib.SOURCE_REMOVE;
-        });
-        this._timers.add(this._bootRepaint);
     }
 
     _tick() {

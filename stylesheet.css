@@ -42,7 +42,7 @@
 .tahoe-drag-handle {
     background-color: rgba(255, 255, 255, 0.30);
     border-radius:    2px;
-    margin-bottom:    8px;
+    margin-bottom:    0;
 }
 
 /* ── Background modes ────────────────────────────────────────────── */
@@ -79,6 +79,9 @@
 .tahoe-bg-light .tahoe-battery-percent { color: rgba(0, 0, 0, 0.92); }
 .tahoe-bg-light .tahoe-status-text  { color: rgba(0, 0, 0, 0.78); }
 .tahoe-bg-light .tahoe-status-value { color: rgba(0, 0, 0, 0.52); }
+.tahoe-bg-light .tahoe-status-icon  { color: rgba(0, 0, 0, 0.78); }
+.tahoe-bg-light .tahoe-battery-icon { color: rgba(0, 0, 0, 0.92); }
+.tahoe-bg-light .tahoe-weather-detail-icon { color: rgba(0, 0, 0, 0.44); }
 .tahoe-bg-light .tahoe-cal-other    { color: rgba(0, 0, 0, 0.20); }
 .tahoe-bg-light .tahoe-drag-handle  { background-color: rgba(0, 0, 0, 0.15); }
 .tahoe-bg-light .tahoe-btn          { color: rgba(0, 0, 0, 0.82); background-color: rgba(0, 0, 0, 0.08); border-color: rgba(0, 0, 0, 0.16); }
@@ -231,6 +234,16 @@
 .tahoe-forecast-hour { font-size: 11px; color: rgba(255,255,255,0.48); }
 .tahoe-forecast-icon { font-size: 15px; }
 .tahoe-forecast-temp { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.82); }
+.tahoe-weather-separator { height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0; }
+
+/* ── Weather — light‑mode overrides ───────────────────────────── */
+.tahoe-bg-light .tahoe-weather-location { color: rgba(0, 0, 0, 0.86); }
+.tahoe-bg-light .tahoe-weather-temp     { color: rgba(0, 0, 0, 0.94); }
+.tahoe-bg-light .tahoe-weather-desc     { color: rgba(0, 0, 0, 0.58); }
+.tahoe-bg-light .tahoe-weather-hi-lo    { color: rgba(0, 0, 0, 0.44); }
+.tahoe-bg-light .tahoe-forecast-hour    { color: rgba(0, 0, 0, 0.42); }
+.tahoe-bg-light .tahoe-forecast-temp    { color: rgba(0, 0, 0, 0.78); }
+.tahoe-bg-light .tahoe-weather-separator  { background: rgba(0, 0, 0, 0.10); }
 
 /* ── Calendar widget — 1×1 Small (155×155 — matches Clock) ──────────── */
 
@@ -276,11 +289,11 @@
 
 .tahoe-cal-day-small {
     font-family:  "Inter", "Cantarell", sans-serif;
-    font-size:    10px;
+    font-size:    11px;
     color:        rgba(255, 255, 255, 0.72);
-    min-width:    20px;
-    min-height:   20px;
-    border-radius: 10px;
+    min-width:    22px;
+    min-height:   22px;
+    border-radius: 11px;
     padding: 0;
 }
 
@@ -324,9 +337,11 @@
 /* ── Quick status ─────────────────────────────────────────────────── */
 
 .tahoe-quick-status  { min-width: 200px; }
-.tahoe-status-icon   { font-size: 16px; min-width: 20px; }
+.tahoe-status-icon   { color: rgba(255,255,255,0.80); min-width: 20px; }
 .tahoe-status-text   { font-family: "Inter", "Cantarell", sans-serif; font-size: 13px; color: rgba(255,255,255,0.80); }
 .tahoe-status-value  { font-family: "Inter", "Cantarell", sans-serif; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.52); }
+.tahoe-battery-icon  { color: rgba(255,255,255,0.92); }
+.tahoe-weather-detail-icon { color: rgba(255,255,255,0.48); }
 
 /* ── Widget Picker panel ──────────────────────────────────────────── */
 

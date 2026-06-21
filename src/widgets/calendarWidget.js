@@ -84,7 +84,7 @@ export class CalendarDoubleWidget extends BaseWidget {
     build() {
         this.actor.add_style_class_name('tahoe-calendar-double');
         this.actor.set_size(CALENDAR_MEDIUM.width, CALENDAR_MEDIUM.height);
-        this._content.style = 'spacing:0; padding:6px 8px;';
+        this._content.style = 'spacing:0; padding:4px 6px;';
 
         this._today    = new Date();
         this._viewDate = new Date();
@@ -93,17 +93,16 @@ export class CalendarDoubleWidget extends BaseWidget {
             vertical: false,
             x_expand: true,
             y_expand: true,
-            style:    'spacing:6px;',
+            style:    'spacing:4px;',
         });
 
         /* ── Left panel: Today ──────────────────────────────── */
 
         this._todayPanel = new St.BoxLayout({
             vertical:  true,
-            x_expand:  true,
             y_expand:  true,
             y_align:   Clutter.ActorAlign.CENTER,
-            style:     'spacing:4px;',
+            style:     'spacing:4px; min-width:120px;',
         });
 
         this._dayLabel = new St.Label({
@@ -263,6 +262,8 @@ export class CalendarDoubleWidget extends BaseWidget {
             style_class: cls,
             x_align:     Clutter.ActorAlign.CENTER,
             y_align:     Clutter.ActorAlign.CENTER,
+            x_expand:    true,
+            y_expand:    true,
         });
     }
 

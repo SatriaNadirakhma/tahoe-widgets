@@ -10,15 +10,15 @@ const WEATHER_BASE  = 'https://api.open-meteo.com/v1/forecast';
 const GEO_BASE      = 'https://geocoding-api.open-meteo.com/v1/search';
 
 const WMO = {
-    0:  ['☀️',  'Clear'],        1:  ['🌤️', 'Mostly Clear'],
-    2:  ['⛅',  'Partly Cloudy'], 3:  ['☁️',  'Overcast'],
-    45: ['🌫️', 'Fog'],           48: ['🌫️', 'Rime Fog'],
-    51: ['🌦️', 'Light Drizzle'], 53: ['🌦️', 'Drizzle'],   55: ['🌧️', 'Heavy Drizzle'],
-    61: ['🌧️', 'Light Rain'],    63: ['🌧️', 'Rain'],       65: ['🌧️', 'Heavy Rain'],
-    71: ['🌨️', 'Light Snow'],    73: ['🌨️', 'Snow'],       75: ['❄️',  'Heavy Snow'],
-    80: ['🌦️', 'Showers'],       81: ['🌧️', 'Rain Showers'],
-    85: ['🌨️', 'Snow Showers'],
-    95: ['⛈️',  'Thunderstorm'],  96: ['⛈️',  'Thunderstorm + Hail'],
+    0:  ['sun',             'Clear'],        1:  ['sun',             'Mostly Clear'],
+    2:  ['cloud-sun',       'Partly Cloudy'], 3:  ['cloud',           'Overcast'],
+    45: ['cloud-fog',       'Fog'],           48: ['cloud-fog',       'Rime Fog'],
+    51: ['cloud-drizzle',   'Light Drizzle'], 53: ['cloud-drizzle',   'Drizzle'],   55: ['cloud-drizzle',   'Heavy Drizzle'],
+    61: ['cloud-rain',      'Light Rain'],    63: ['cloud-rain',      'Rain'],       65: ['cloud-rain-wind', 'Heavy Rain'],
+    71: ['cloud-snow',      'Light Snow'],    73: ['cloud-snow',      'Snow'],       75: ['cloud-snow',      'Heavy Snow'],
+    80: ['cloud-rain',      'Showers'],       81: ['cloud-rain-wind', 'Rain Showers'],
+    85: ['cloud-snow',      'Snow Showers'],
+    95: ['cloud-lightning', 'Thunderstorm'],  96: ['cloud-lightning', 'Thunderstorm + Hail'],
 };
 
 export class DataManager {
@@ -136,20 +136,22 @@ export class DataManager {
         const c   = raw.current;
         const d   = raw.daily;
         const h   = raw.hourly;
-        const wmo = WMO[c.weathercode] ?? ['🌡️', 'Unknown'];
+        const wmo = WMO[c.weathercode] ?? ['cloud', 'Unknown'];
         const now     = new Date();
         const curHour = now.getHours();
         const forecast = [];
         for (let i = 1; i <= 6; i++) {
             const idx = curHour + i;
             if (idx >= h.time.length) break;
-            const fw = WMO[h.weathercode[idx]] ?? ['🌡️', ''];
+            const fw = WMO[h.weathercode[idx]] ?? ['cloud', ''];
             forecast.push({ time: h.time[idx].slice(11, 16), icon: fw[0],
+                wmoCode: h.weathercode[idx],
                 temp: `${Math.round(h.temperature_2m[idx])}${sym}` });
         }
         return {
             location: locationName, temperature: Math.round(c.temperature_2m),
             unit: sym, description: wmo[1], icon: wmo[0],
+            wmoCode: c.weathercode,
             high: `${Math.round(d.temperature_2m_max[0])}${sym}`,
             low:  `${Math.round(d.temperature_2m_min[0])}${sym}`,
             humidity: `${c.relativehumidity_2m}%`,

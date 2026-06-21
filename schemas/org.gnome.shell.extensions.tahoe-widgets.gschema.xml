@@ -53,11 +53,12 @@
     <key name="background-mode" type="s">
       <choices>
         <choice value="transparent"/>
+        <choice value="auto"/>
         <choice value="light"/>
         <choice value="dark"/>
       </choices>
       <default>"transparent"</default>
-      <summary>Widget background style (transparent = glassmorphism, light/dark = solid surface)</summary>
+      <summary>Widget background style (transparent = glassmorphism, auto = follow device, light/dark = solid surface)</summary>
     </key>
 
     <!-- ══ Layout ════════════════════════════════════════════════════ -->

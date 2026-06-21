@@ -16,6 +16,7 @@ import GLib       from 'gi://GLib';
 import Pango      from 'gi://Pango';
 import PangoCairo from 'gi://PangoCairo';
 import { BaseWidget, WIDGET_MEDIUM } from './baseWidget.js';
+import { getLucideIcon } from '../utils/lucideHelper.js';
 
 const LINE_CAP_ROUND = 1;
 
@@ -243,7 +244,7 @@ const UPOWER_BUS = 'org.freedesktop.UPower';
 const DISP_PATH  = '/org/freedesktop/UPower/devices/DisplayDevice';
 const DEV_IFACE  = 'org.freedesktop.UPower.Device';
 const PROP_IFACE = 'org.freedesktop.DBus.Properties';
-const DEVICE_ICON = { 1:'🖱️', 2:'⌨️', 3:'🎮', 5:'🔋', 8:'🖥️' };
+const DEVICE_ICON = { 1:'mouse', 2:'keyboard', 3:'gamepad-2', 5:'battery-full', 8:'monitor' };
 
 export class BatteryWidget extends BaseWidget {
     build() {
@@ -346,9 +347,13 @@ export class BatteryWidget extends BaseWidget {
         this._content.remove_all_children();
         this._content.add_child(new St.Label({ text: 'Battery', style_class: 'tahoe-label-caption', style: 'margin-bottom:8px;' }));
         const charging = state === 1, full = state === 4;
-        const icon = full ? '⚡' : charging ? '⚡' : pct <= 20 ? '🪫' : '🔋';
+        const batIcon = full ? getLucideIcon('battery-full', 22)
+            : charging ? getLucideIcon('battery-charging', 22)
+            : pct <= 20 ? getLucideIcon('battery-warning', 22)
+            : getLucideIcon('battery-full', 22);
+        batIcon.add_style_class_name('tahoe-battery-icon');
         const topRow = new St.BoxLayout({ vertical: false, style: 'spacing:6px;' });
-        topRow.add_child(new St.Label({ text: icon, style_class: 'tahoe-label-medium', y_align: Clutter.ActorAlign.CENTER }));
+        topRow.add_child(batIcon);
         topRow.add_child(new St.Label({ text: `${pct}%`, style_class: 'tahoe-battery-percent', y_align: Clutter.ActorAlign.CENTER }));
         if (charging || full) topRow.add_child(new St.Label({ text: full ? 'Full' : 'Charging', style_class: 'tahoe-label-small tahoe-muted', y_align: Clutter.ActorAlign.CENTER }));
         this._content.add_child(topRow);
@@ -390,9 +395,11 @@ export class QuickStatusWidget extends BaseWidget {
         this.actor.add_style_class_name('tahoe-quick-status');
         this._content.add_child(new St.Label({ text: 'Status', style_class: 'tahoe-label-caption', style: 'margin-bottom:8px;' }));
         this._vals = {};
-        [{ key:'wifi',icon:'📶',label:'Wi-Fi'},{ key:'bt',icon:'📡',label:'Bluetooth'},{ key:'cpu',icon:'💻',label:'CPU'},{ key:'mem',icon:'🧠',label:'Memory'}].forEach(({ key, icon, label }) => {
+        [{ key:'wifi',icon:'wifi',label:'Wi-Fi'},{ key:'bt',icon:'bluetooth',label:'Bluetooth'},{ key:'cpu',icon:'cpu',label:'CPU'},{ key:'mem',icon:'memory-stick',label:'Memory'}].forEach(({ key, icon, label }) => {
             const row = new St.BoxLayout({ vertical: false, style: 'spacing:8px; padding:4px 0;', x_expand: true });
-            row.add_child(new St.Label({ text: icon, style_class: 'tahoe-status-icon', y_align: Clutter.ActorAlign.CENTER }));
+            const statusIcon = getLucideIcon(icon, 16);
+            statusIcon.add_style_class_name('tahoe-status-icon');
+            row.add_child(statusIcon);
             row.add_child(new St.Label({ text: label, style_class: 'tahoe-status-text', x_expand: true, y_align: Clutter.ActorAlign.CENTER }));
             const val = new St.Label({ text: '—', style_class: 'tahoe-status-value', y_align: Clutter.ActorAlign.CENTER });
             this._vals[key] = val; row.add_child(val); this._content.add_child(row);

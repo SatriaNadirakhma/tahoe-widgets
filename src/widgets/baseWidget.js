@@ -9,9 +9,11 @@
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib    from 'gi://GLib';
+import Gio     from 'gi://Gio';
 import * as Main      from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Logger }     from '../utils/logger.js';
+import { getLucideIcon } from '../utils/lucideHelper.js';
 
 // macOS-style widget grid sizes
 // Small  = 2×2 grid units ≈ 155×155 px
@@ -123,10 +125,9 @@ export class BaseWidget {
     showError(message = 'Error') {
         this._content.remove_all_children();
         const box = new St.BoxLayout({ vertical: true, style: 'spacing:4px;' });
-        box.add_child(new St.Label({
-            text: '⚠️', style_class: 'tahoe-label-medium',
-            x_align: Clutter.ActorAlign.CENTER,
-        }));
+        const errIcon = getLucideIcon('triangle-alert', 22);
+        errIcon.style = 'color: rgba(255,255,255,0.88);';
+        box.add_child(errIcon);
         box.add_child(new St.Label({
             text: message, style_class: 'tahoe-label-small tahoe-muted',
             x_align: Clutter.ActorAlign.CENTER,
@@ -171,8 +172,12 @@ export class BaseWidget {
     /* ══ Visual styling ═══════════════════════════════════════════════ */
 
     _applyPanelStyle() {
-        const mode   = this._state.backgroundMode ?? 'transparent';
+        let mode = this._state.backgroundMode ?? 'transparent';
         const radius = this._state.cornerRadius ?? 20;
+
+        if (mode === 'auto') {
+            mode = this._resolveSystemColorScheme();
+        }
 
         this.actor.remove_style_class_name('tahoe-bg-light');
         this.actor.remove_style_class_name('tahoe-bg-dark');
@@ -188,6 +193,16 @@ export class BaseWidget {
             this.actor.style =
                 `background-color: rgba(255,255,255,${opacity});` +
                 `border-radius: ${radius}px;`;
+        }
+    }
+
+    _resolveSystemColorScheme() {
+        try {
+            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            const scheme = iface.get_string('color-scheme');
+            return scheme === 'prefer-dark' ? 'dark' : 'light';
+        } catch {
+            return 'light';
         }
     }
 

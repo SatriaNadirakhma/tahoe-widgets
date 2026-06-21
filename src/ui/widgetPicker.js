@@ -2,6 +2,7 @@ import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Logger } from '../utils/logger.js';
+import { getLucideIcon } from '../utils/lucideHelper.js';
 
 export class WidgetPicker {
     constructor(registry, state) {
@@ -26,8 +27,11 @@ export class WidgetPicker {
         const header = new St.BoxLayout({ vertical: false, style: 'margin-bottom:16px; spacing:8px;' });
         header.add_child(new St.Label({ text: 'Add Widget', style_class: 'tahoe-label-medium',
             x_expand: true, y_align: Clutter.ActorAlign.CENTER }));
-        const closeBtn = new St.Button({ label: '✕', style_class: 'tahoe-btn-icon',
-            y_align: Clutter.ActorAlign.CENTER });
+        const closeBtn = new St.Button({
+            style_class: 'tahoe-btn-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        closeBtn.set_child(getLucideIcon('x', 16));
         closeBtn.connect('clicked', () => this.hide());
         header.add_child(closeBtn);
         this._panel.add_child(header);
@@ -41,8 +45,13 @@ export class WidgetPicker {
         this._panel.add_child(scroll);
         this._panel.add_child(new St.Widget({ x_expand: true, height: 1,
             style: 'background: rgba(255,255,255,0.10); margin-top:12px; margin-bottom:12px;' }));
-        const resetBtn = new St.Button({ label: '⚠ Reset All to Defaults',
-            style_class: 'tahoe-btn tahoe-btn-danger', x_align: Clutter.ActorAlign.CENTER });
+        const resetBtn = new St.Button({
+            style_class: 'tahoe-btn tahoe-btn-danger', x_align: Clutter.ActorAlign.CENTER,
+        });
+        const resetBox = new St.BoxLayout({ vertical: false, style: 'spacing:6px;', x_align: Clutter.ActorAlign.CENTER });
+        resetBox.add_child(getLucideIcon('triangle-alert', 14));
+        resetBox.add_child(new St.Label({ text: 'Reset All to Defaults' }));
+        resetBtn.set_child(resetBox);
         resetBtn.connect('clicked', () => this._onReset());
         this._panel.add_child(resetBtn);
         this._repositionPanel();
@@ -92,8 +101,9 @@ export class WidgetPicker {
         const card = new St.BoxLayout({ vertical: false,
             style: `spacing:12px; padding:12px; border-radius:14px; background: rgba(255,255,255,${isActive ? '0.18' : '0.08'}); border: 1px solid rgba(255,255,255,0.14); margin-bottom:4px;`,
             reactive: true });
-        card.add_child(new St.Label({ text: desc.icon ?? '🔲',
-            style: 'font-size:28px; min-width:36px;', y_align: Clutter.ActorAlign.CENTER }));
+        const catIcon = getLucideIcon(desc.icon ?? 'cloud', 28);
+        catIcon.style = 'min-width:36px; color: rgba(255,255,255,0.88);';
+        card.add_child(catIcon);
         const textCol = new St.BoxLayout({ vertical: true, x_expand: true,
             y_align: Clutter.ActorAlign.CENTER, style: 'spacing:2px;' });
         textCol.add_child(new St.Label({ text: desc.label ?? desc.id, style_class: 'tahoe-label' }));

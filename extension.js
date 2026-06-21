@@ -16,6 +16,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { Logger }           from './src/utils/logger.js';
 import { registerFonts, unregisterFonts } from './src/utils/fontLoader.js';
+import { setExtensionPath } from './src/utils/lucideHelper.js';
 import { StateManager }     from './src/core/stateManager.js';
 import { WidgetRegistry }   from './src/core/widgetRegistry.js';
 import { LayoutManager }    from './src/core/layoutManager.js';
@@ -33,13 +34,13 @@ import {
 } from './src/widgets/otherWidgets.js';
 
 const WIDGET_CATALOG = [
-    { id: 'clock',          label: 'Clock',         description: 'Analog clock face',           icon: '🕐', Cls: ClockWidget       },
-    { id: 'weather',        label: 'Weather',       description: 'Conditions + 6hr forecast',   icon: '🌤️', Cls: WeatherWidget    },
-    { id: 'calendar',       label: 'Calendar',      description: 'Today: date, day & month (1×1)',  icon: '📅', Cls: CalendarWidget    },
-    { id: 'calendar-double',label: 'Calendar 2×',   description: 'Today + mini calendar (2×1)',       icon: '📆', Cls: CalendarDoubleWidget },
-    { id: 'worldClock',     label: 'World Clock',   description: 'Multi-timezone display',      icon: '🌍', Cls: WorldClockWidget  },
-    { id: 'battery',        label: 'Battery',       description: 'Battery + devices',           icon: '🔋', Cls: BatteryWidget     },
-    { id: 'quickStatus',    label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',             icon: '📊', Cls: QuickStatusWidget },
+    { id: 'clock',          label: 'Clock',         description: 'Analog clock face',           icon: 'clock',         Cls: ClockWidget       },
+    { id: 'weather',        label: 'Weather',       description: 'Conditions + 6hr forecast',   icon: 'cloud-sun',     Cls: WeatherWidget    },
+    { id: 'calendar',       label: 'Calendar',      description: 'Today: date, day & month (1x1)',  icon: 'calendar',  Cls: CalendarWidget    },
+    { id: 'calendar-double',label: 'Calendar 2x',   description: 'Today + mini calendar (2x1)',       icon: 'calendar-days', Cls: CalendarDoubleWidget },
+    { id: 'worldClock',     label: 'World Clock',   description: 'Multi-timezone display',      icon: 'globe',         Cls: WorldClockWidget  },
+    { id: 'battery',        label: 'Battery',       description: 'Battery + devices',           icon: 'battery-full',  Cls: BatteryWidget     },
+    { id: 'quickStatus',    label: 'Quick Status',  description: 'Wi-Fi, CPU, RAM',             icon: 'bar-chart-3',   Cls: QuickStatusWidget },
 ];
 
 export default class TahoeWidgetsExtension extends Extension {
@@ -50,9 +51,10 @@ export default class TahoeWidgetsExtension extends Extension {
         this._log.info('Enabling Tahoe Widgets v3.1.0');
 
         try {
-            // ── 0. Daftarkan font Inter dari folder fonts/ ─────────
-            //    Harus sebelum widget dibuat agar St.Theme sudah
-            //    mengenal "Inter" saat CSS pertama kali di-parse.
+            // ── 0. Set extension path for asset loading ────────────
+            setExtensionPath(this.path);
+
+            // ── 1. Register font Inter dari folder fonts/ ─────────
             registerFonts(this.path);
 
             // ── 1. Core singletons ─────────────────────────────────
@@ -108,7 +110,7 @@ export default class TahoeWidgetsExtension extends Extension {
             if (saved.length === 0 && this._state.isFirstRun) {
                 Main.notify(
                     'Tahoe Widgets',
-                    'Click 🌊 on the top bar → "Add Widget" for adding new widgets!'
+                    'Click Tahoe on the top bar, then "Add Widget" to get started.'
                 );
                 this._state.isFirstRun = false;   // never show again
             }
